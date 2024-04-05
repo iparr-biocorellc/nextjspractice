@@ -1,6 +1,7 @@
 import { formatDateToLocal, formatCurrency } from '@/app/lib/utils';
 import { fetchFilteredOrders } from '@/app/lib/data'; // Adjust to fetch orders
 import { UpdateOrder, DeleteOrder } from '@/app/ui/sales/buttons';
+import {DeleteInvoice, UpdateInvoice} from "@/app/ui/invoices/buttons";
 
 export default async function SalesTable({
   query,
@@ -10,12 +11,13 @@ export default async function SalesTable({
   currentPage: number;
 }) {
   const orders = await fetchFilteredOrders(query, currentPage);
+  console.log(orders);
 
   return (
-      <div className="mt-6 flow-root">
+      <div className="mt-6 flow-root overflow-scroll" style={{maxHeight: "500px"}}>
         <div className="inline-block min-w-full align-middle">
           <div className="overflow-x-auto rounded-lg bg-gray-50 p-2 md:pt-0">
-            <table className="min-w-full divide-y divide-gray-200 text-gray-900">
+            <table className="min-w-full divide-y divide-gray-200 text-gray-900" style={{whiteSpace: "nowrap"}}>
               <thead className="bg-gray-50 text-left text-sm font-semibold">
               <tr>
                 {/* Headers for all columns */}
@@ -44,29 +46,31 @@ export default async function SalesTable({
               {orders?.map((order) => (
                   <tr key={order.order_number}>
                     {/* Data for all columns */}
-                    <td className="px-3 py-4">{order.order_number}</td>
-                    <td className="px-3 py-4">{formatDateToLocal(order.date)}</td>
-                    <td className="px-3 py-4">{order.item_title}</td>
-                    <td className="px-3 py-4">{order.item_id}</td>
-                    <td className="px-3 py-4">{order.buyer_username}</td>
-                    <td className="px-3 py-4">{order.buyer_name}</td>
-                    <td className="px-3 py-4">{order.city}</td>
-                    <td className="px-3 py-4">{order.state}</td>
-                    <td className="px-3 py-4">{order.zip}</td>
-                    <td className="px-3 py-4">{order.quantity}</td>
-                    <td className="px-3 py-4">{formatCurrency(order.item_subtotal)}</td>
-                    <td className="px-3 py-4">{formatCurrency(order.shipping_handling)}</td>
-                    <td className="px-3 py-4">{formatCurrency(order.ebay_collected_tax)}</td>
-                    <td className="px-3 py-4">{formatCurrency(order.fv_fixed)}</td>
-                    <td className="px-3 py-4">{formatCurrency(order.fv_variable)}</td>
-                    <td className="px-3 py-4">{formatCurrency(order.international_fee)}</td>
-                    <td className="px-3 py-4">{formatCurrency(order.gross_amount)}</td>
-                    <td className="px-3 py-4">{formatCurrency(order.net_amount)}</td>
-                    <td className="px-3 py-4">
-                    <UpdateOrder order_number={order.order_number} />
-                    <DeleteOrder order_number={order.order_number} />
+                    <td className="px-3 py-1">{order.order_number}</td>
+                    <td className="px-3 py-1">{formatDateToLocal(order.date)}</td>
+                    <td className="px-3 py-1">{order.item_title}</td>
+                    <td className="px-3 py-1">{order.item_id}</td>
+                    <td className="px-3 py-1">{order.buyer_username}</td>
+                    <td className="px-3 py-1">{order.buyer_name}</td>
+                    <td className="px-3 py-1">{order.city}</td>
+                    <td className="px-3 py-1">{order.state}</td>
+                    <td className="px-3 py-1">{order.zip}</td>
+                    <td className="px-3 py-1">{order.quantity}</td>
+                    <td className="px-3 py-1">{formatCurrency(order.item_subtotal)}</td>
+                    <td className="px-3 py-1">{formatCurrency(order.shipping_handling)}</td>
+                    <td className="px-3 py-1">{formatCurrency(order.ebay_collected_tax)}</td>
+                    <td className="px-3 py-1">{formatCurrency(order.fv_fixed)}</td>
+                    <td className="px-3 py-1">{formatCurrency(order.fv_variable)}</td>
+                    <td className="px-3 py-1">{formatCurrency(order.international_fee)}</td>
+                    <td className="px-3 py-1">{formatCurrency(order.gross_amount)}</td>
+                    <td className="px-3 py-1">{formatCurrency(order.net_amount)}</td>
+                    <td>
+                      <div className="flex justify-end gap-3">
+                        <UpdateOrder order_number={order.order_number}/>
+                        <DeleteOrder order_number={order.order_number}/>
+                      </div>
                     </td>
-                  </tr>
+                    </tr>
               ))}
               </tbody>
             </table>
