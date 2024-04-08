@@ -118,6 +118,16 @@ export async function deleteInvoice(id: string) {
     }
 }
 
+export async function deleteOrder(order_number: string) {
+    try {
+        await sql`DELETE FROM orders WHERE order_number = ${order_number}`;
+        revalidatePath('/dashboard/sales');
+        return { message: 'Deleted Order.' };
+    } catch (error) {
+        return { message: 'Database Error: Failed to Delete Order.' };
+    }
+}
+
 export async function authenticate(
     prevState: string | undefined,
     formData: FormData,

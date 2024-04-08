@@ -91,7 +91,7 @@ export async function fetchCardData() {
   }
 }
 
-const ITEMS_PER_PAGE = 6;
+const ITEMS_PER_PAGE = 100;
 export async function fetchFilteredInvoices(
   query: string,
   currentPage: number,
@@ -128,6 +128,62 @@ export async function fetchFilteredInvoices(
   }
 }
 
+export async function fetchFilteredOrders(query: string, currentPage: number) {
+  noStore(); // Assuming this function is defined elsewhere to prevent caching
+  const offset = (currentPage - 1) * ITEMS_PER_PAGE;
+
+  try {
+    const orders = await sql`
+      SELECT
+        order_number,
+        date,
+        item_title,
+        item_id,
+        buyer_username,
+        buyer_name,
+        city,
+        state,
+        zip,
+        quantity,
+        item_subtotal,
+        shipping_handling,
+        ebay_collected_tax,
+        fv_fixed,
+        fv_variable,
+        international_fee,
+        gross_amount,
+        net_amount
+      FROM orders
+      WHERE
+        buyer_username ILIKE ${`%${query}%`} OR
+        buyer_name ILIKE ${`%${query}%`} OR
+        city ILIKE ${`%${query}%`} OR
+        state ILIKE ${`%${query}%`} OR
+        zip ILIKE ${`%${query}%`} OR
+        item_title ILIKE ${`%${query}%`} OR
+        order_number ILIKE ${`%${query}%`} OR
+        item_id ILIKE ${`%${query}%`} OR
+        quantity::text ILIKE ${`%${query}%`} OR
+        item_subtotal::text ILIKE ${`%${query}%`} OR
+        shipping_handling::text ILIKE ${`%${query}%`} OR
+        ebay_collected_tax::text ILIKE ${`%${query}%`} OR
+        fv_fixed::text ILIKE ${`%${query}%`} OR
+        fv_variable::text ILIKE ${`%${query}%`} OR
+        international_fee::text ILIKE ${`%${query}%`} OR
+        gross_amount::text ILIKE ${`%${query}%`} OR
+        net_amount::text ILIKE ${`%${query}%`} OR
+        date::text ILIKE ${`%${query}%`}
+      ORDER BY date DESC
+      LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}
+    `;
+
+    return orders.rows;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch orders.');
+  }
+}
+
 export async function fetchInvoicesPages(query: string) {
   noStore();
   try {
@@ -149,6 +205,81 @@ export async function fetchInvoicesPages(query: string) {
     throw new Error('Failed to fetch total number of invoices.');
   }
 }
+
+export async function fetchOrdersPages(query: string) {
+  noStore(); // Assuming this function is defined elsewhere to prevent caching
+  try {
+    const count = await sql`SELECT COUNT(*)
+    FROM orders
+    WHERE
+      buyer_username ILIKE ${`%${query}%`} OR
+      buyer_name ILIKE ${`%${query}%`} OR
+      city ILIKE ${`%${query}%`} OR
+      state ILIKE ${`%${query}%`} OR
+      zip ILIKE ${`%${query}%`} OR
+      item_title ILIKE ${`%${query}%`} OR
+      order_number ILIKE ${`%${query}%`} OR
+      item_id ILIKE ${`%${query}%`} OR
+      quantity::text ILIKE ${`%${query}%`} OR
+      item_subtotal::text ILIKE ${`%${query}%`} OR
+      shipping_handling::text ILIKE ${`%${query}%`} OR
+      ebay_collected_tax::text ILIKE ${`%${query}%`} OR
+      fv_fixed::text ILIKE ${`%${query}%`} OR
+      fv_variable::text ILIKE ${`%${query}%`} OR
+      international_fee::text ILIKE ${`%${query}%`} OR
+      gross_amount::text ILIKE ${`%${query}%`} OR
+      net_amount::text ILIKE ${`%${query}%`} OR
+      date::text ILIKE ${`%${query}%`}
+    `;
+
+    const totalPages = Math.ceil(Number(count.rows[0].count) / ITEMS_PER_PAGE);
+    return totalPages;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch total number of sales pages.');
+  }
+}
+
+export async function fetchOrderByOrderNumber(orderNumber: string) {
+  noStore(); // Assuming this function is defined elsewhere to prevent caching
+  try {
+    const data = await sql`
+      SELECT
+        order_number,
+        date,
+        item_title,
+        item_id,
+        buyer_username,
+        buyer_name,
+        city,
+        state,
+        zip,
+        quantity,
+        item_subtotal,
+        shipping_handling,
+        ebay_collected_tax,
+        fv_fixed,
+        fv_variable,
+        international_fee,
+        gross_amount,
+        net_amount
+      FROM orders
+      WHERE order_number = ${orderNumber};
+    `;
+
+    // Directly return the first item, assuming order numbers are unique
+    const order = data.rows[0] ? {
+      ...data.rows[0],
+      // Format date if necessary
+    } : null;
+
+    return order;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch order by ID.');
+  }
+}
+
 
 export async function fetchInvoiceById(id: string) {
   noStore();

@@ -1,5 +1,6 @@
 "use client";
 import {
+  CurrencyDollarIcon,
   UserGroupIcon,
   HomeIcon,
   DocumentDuplicateIcon,
@@ -12,6 +13,11 @@ import clsx from 'clsx';
 // Depending on the size of the application, this would be stored in a database.
 const links = [
   { name: 'Home', href: '/dashboard', icon: HomeIcon },
+  {
+    name: 'Sales',
+    href: '/dashboard/sales',
+    icon: CurrencyDollarIcon,
+  },
   {
     name: 'Invoices',
     href: '/dashboard/invoices',
