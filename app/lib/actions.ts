@@ -142,7 +142,6 @@ export async function signUp(
     try {
         // Assuming `createUser` is a function that takes `FormData` and signs up a new user
         await createUser(formData);
-        return 'Signup successful.';
     } catch (error) {
         // Checking if the error is an instance of Error to safely access its message property
         if (error instanceof Error) {
@@ -160,5 +159,6 @@ export async function signUp(
             throw error;
         }
     }
+    redirect('/login');
 }
 
