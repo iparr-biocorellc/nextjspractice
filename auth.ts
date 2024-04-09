@@ -16,6 +16,40 @@ async function getUser(email: string): Promise<User | undefined> {
     }
 }
 
+export async function createUser(formData: FormData): Promise<void> {
+    const name = formData.get('name');
+    const email = formData.get('email');
+    const password = formData.get('password');
+    const confirmPassword = formData.get('confirmPassword'); // Ensure this matches the name attribute in your form
+
+    // Validate email and password presence
+    if (!name || typeof name !== 'string' || !email || typeof email !== 'string' || !password || typeof password !== 'string' || !confirmPassword || typeof confirmPassword !== 'string') {
+        throw new Error('Email, password, and password confirmation are required.');
+    }
+
+    // Check if the two passwords match
+    if (password !== confirmPassword) {
+        throw new Error('Passwords do not match.');
+    }
+
+    // Check if the user already exists
+    const existingUser = await getUser(email);
+    if (existingUser) {
+        throw new Error('Email already exists.');
+    }
+
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Insert the new user into the database
+    try {
+        await sql`INSERT INTO users (name, email, password) VALUES (${name}, ${email}, ${hashedPassword})`;
+    } catch (error) {
+        console.error('Failed to create user:', error);
+        throw new Error('Failed to create user.');
+    }
+}
+
 export const { auth, signIn, signOut } = NextAuth({
     ...authConfig,
     providers: [
