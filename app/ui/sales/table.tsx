@@ -14,7 +14,7 @@ export default async function SalesTable({
   console.log(orders);
 
   return (
-      <div className="mt-6 flow-root overflow-scroll" style={{maxHeight: "500px"}}>
+      <div className="mt-6 flow-root overflow-scroll" style={{maxHeight: "800px"}}>
         <div className="inline-block min-w-full align-middle">
           <div className="overflow-x-auto rounded-lg bg-gray-50 p-2 md:pt-0">
             <table className="min-w-full divide-y divide-gray-200 text-gray-900" style={{whiteSpace: "nowrap"}}>
