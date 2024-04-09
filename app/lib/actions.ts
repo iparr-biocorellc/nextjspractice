@@ -1,8 +1,6 @@
 'use server';
-import { signIn } from '@/auth';
+import { signIn, createUser } from '@/auth';
 import { AuthError } from 'next-auth';
-
-
 import { z } from 'zod';
 import { sql } from '@vercel/postgres';
 import { revalidatePath } from 'next/cache';
@@ -136,3 +134,31 @@ export async function authenticate(
         throw error;
     }
 }
+
+export async function signUp(
+    prevState: string | undefined,
+    formData: FormData
+) {
+    try {
+        // Assuming `createUser` is a function that takes `FormData` and signs up a new user
+        await createUser(formData);
+        return 'Signup successful.';
+    } catch (error) {
+        // Checking if the error is an instance of Error to safely access its message property
+        if (error instanceof Error) {
+            // Matching the error message directly since we're not using AuthError
+            if (error.message === 'Email already exists.') {
+                return 'Email already exists.';
+            } else if (error.message === 'Email and password are required.') {
+                return 'Email and password are required.';
+            } else {
+                // Handle other errors that may not have been explicitly thrown by us
+                return 'Something went wrong during signup.';
+            }
+        } else {
+            // If it's not an Error instance, rethrow it
+            throw error;
+        }
+    }
+}
+
