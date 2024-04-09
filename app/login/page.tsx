@@ -1,9 +1,5 @@
 import AcmeLogo from '@/app/ui/acme-logo';
 import LoginForm from '@/app/ui/login-form';
-import signupform from '@/app/ui/signupform';
-import Link from 'next/link';
-// import { ArrowRightIcon } from '@chakra-ui/icons';
-
 
 export default function LoginPage() {
     return (
@@ -15,7 +11,6 @@ export default function LoginPage() {
                     </div>
                 </div>
                 <LoginForm />
-
             </div>
         </main>
     );
