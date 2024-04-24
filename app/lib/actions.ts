@@ -5,7 +5,6 @@ import { z } from 'zod';
 import { sql } from '@vercel/postgres';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import XLSX from 'xlsx';
 
 const FormSchema = z.object({
     id: z.string(),
@@ -213,73 +212,46 @@ export async function signUp(
     redirect('/login');
 }
 
-export async function processSalesUpload(prevState: orderState, formData: FormData) {
-    // The file is an excel spreadsheet that does have headers
-    const reader = new FileReader();
-    reader.readAsArrayBuffer(file);
-    const data = await new Promise<any[]>((resolve) => {
-        reader.onload = (e) => {
-            if (!e.target) {
-                console.error('Event target is null');
-                return; // Early return if e.target is null
-            }
-            const data = new Uint8Array(e.target.result as ArrayBuffer);
-            const workbook = XLSX.read(data, { type: 'array' });
-            const sheet = workbook.Sheets[workbook.SheetNames[0]];
-            const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-            resolve(rows.slice(1));
-        };
-    });
-    console.log(data)
-    // Attempt to insert each row into the database
+export async function uploadOrders(ordersData: any[]): Promise<orderState> {
     try {
-        for (const row of data) {
-            const validatedFields = OrderData.safeParse({
-                order_number: row.order_number,
-                item_title: row.item_title,
-                item_id: row.item_id,
-                buyer_username: row.buyer_username,
-                buyer_name: row.buyer_name,
-                city: row.city,
-                state: row.state,
-                zip: row.zip,
-                quantity: row.quantity,
-                item_subtotal: row.item_subtotal,
-                shipping_handling: row.shipping_handling,
-                ebay_collected_tax: row.ebay_collected_tax,
-                fv_fixed: row.fv_fixed,
-                fv_variable: row.fv_variable,
-                international_fee: row.international_fee,
-                gross_amount: row.gross_amount,
-                net_amount: row.net_amount,
-            });
-            if (!validatedFields.success) {
-                return {
-                    errors: validatedFields.error.flatten().fieldErrors,
-                    message: 'Missing Fields. Failed to Update Invoice.',
-                };
+        // Validate each order data record
+        const parsedOrders = ordersData.map(data => OrderData.parse(data));
+
+        // Insert data into the database within a transaction
+        await sql.transaction(async trx => {
+            for (const order of parsedOrders) {
+                await trx.raw(`
+                    INSERT INTO orders (
+                        order_number, item_title, item_id, buyer_username, buyer_name,
+                        city, state, zip, quantity, item_subtotal, shipping_handling,
+                        ebay_collected_tax, fv_fixed, fv_variable, international_fee,
+                        gross_amount, net_amount
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                `, [
+                    order.order_number, order.item_title, order.item_id, order.buyer_username,
+                    order.buyer_name, order.city, order.state, order.zip, order.quantity,
+                    order.item_subtotal, order.shipping_handling, order.ebay_collected_tax,
+                    order.fv_fixed, order.fv_variable, order.international_fee,
+                    order.gross_amount, order.net_amount
+                ]);
             }
-            const { order_number, item_title, item_id, buyer_username, buyer_name, city, state, zip, quantity, item_subtotal, shipping_handling, ebay_collected_tax, fv_fixed, fv_variable, international_fee, gross_amount, net_amount } = validatedFields.data;
+        });
 
-            // Convert necessary fields to the correct type, e.g., converting strings to numbers
-            await sql`
-                INSERT INTO orders (order_number, item_title, item_id, buyer_username, buyer_name, city, state, zip, quantity, item_subtotal, shipping_handling, ebay_collected_tax, fv_fixed, fv_variable, international_fee, gross_amount, net_amount)
-                VALUES (${order_number}, ${item_title}, ${item_id}, ${buyer_username}, ${buyer_name}, ${city}, ${state}, ${zip}, ${quantity}, ${+item_subtotal}, ${+shipping_handling}, ${+ebay_collected_tax}, ${+fv_fixed}, ${+fv_variable}, ${+international_fee}, ${+gross_amount}, ${+net_amount})
-            `;
-        }
-
-        // Revalidate the cache for the sales page and redirect the user
-        // Assuming revalidatePath and redirect are available in your application context
-        revalidatePath('/dashboard/sales');
-        redirect('/dashboard/sales');
-
-        return {
-            message: 'Sales uploaded successfully',
-        };
+        return { message: 'Successfully uploaded order data.' };
     } catch (error) {
-        console.error('Error inserting sales data:', error);
-        return {
-            message: 'Database Error: Failed to upload sales.',
-        };
+        // Handle validation or SQL errors
+        console.error('Failed to upload order data:', error);
+        if (error instanceof z.ZodError) {
+            // Transform ZodError into a structure compatible with `orderState`
+            const fieldErrors = error.flatten().fieldErrors;
+            let errors: any = {};
+            for (const key of Object.keys(fieldErrors)) {
+                errors[key] = fieldErrors[key];
+            }
+            return { errors, message: 'Validation Error. Please check the provided data.' };
+        } else {
+            return { message: `Database Error: ${error.message}` };
+        }
     }
 }

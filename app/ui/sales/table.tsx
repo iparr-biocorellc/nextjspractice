@@ -11,8 +11,6 @@ export default async function SalesTable({
   currentPage: number;
 }) {
   const orders = await fetchFilteredOrders(query, currentPage);
-  console.log(orders);
-
   return (
       <div className="mt-6 flow-root overflow-scroll" style={{maxHeight: "800px"}}>
         <div className="inline-block min-w-full align-middle">
