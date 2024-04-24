@@ -22,7 +22,7 @@ const FormSchema = z.object({
 
 const OrderData = z.object({
     order_number: z.string(),
-    date: z.date(),
+    date: z.string(),
     item_title: z.string(),
     item_id: z.string(),
     buyer_username: z.string(),
@@ -214,25 +214,49 @@ export async function signUp(
     redirect('/login');
 }
 
+function excelSerialDateToDate(serial:number) {
+    const utc_days  = Math.floor(serial - 25569);
+    const utc_value = utc_days * 86400;
+    const date_info = new Date(utc_value * 1000);
+
+    // Optional: to get the date in the local timezone offset
+    const fractional_day = serial - Math.floor(serial) + 0.0000001;
+    let total_seconds = Math.floor(86400 * fractional_day);
+    const seconds = total_seconds % 60;
+    total_seconds -= seconds;
+    const hours = Math.floor(total_seconds / (60 * 60));
+    const minutes = Math.floor(total_seconds / 60) % 60;
+
+    return new Date(date_info.getFullYear(), date_info.getMonth(), date_info.getDate(), hours, minutes, seconds);
+}
+
 export async function uploadOrders(ordersData: any[]): Promise<orderState> {
-    ordersData = ordersData.map((row: any) => ({
-        ...row,
-        item_id: String(row.item_id), // Ensure item_id is converted to a string
-        zip: String(row.zip), // Ensure zip is converted to a string
-        state: String(row.state), // Ensure state is converted to a string
-    }));
+    ordersData = ordersData.map((row: any) => {
+        // Convert Excel date serial number to JavaScript Date object
+        const date = excelSerialDateToDate(row.date);
+        // Convert JavaScript Date object to 'YYYY-MM-DD' string format
+        const formattedDate = date.toISOString().split('T')[0];
+
+        return {
+            ...row,
+            item_id: String(row.item_id),
+            zip: String(row.zip),
+            state: String(row.state),
+            date: formattedDate,
+        };
+    });
     try {
         // Validate each order data record
         const parsedOrders = ordersData.map(data => OrderData.parse(data));
         for (const order of parsedOrders) {
             await sql`
             INSERT INTO orders (
-                order_number, item_title, item_id, buyer_username, buyer_name,
+                order_number, date, item_title, item_id, buyer_username, buyer_name,
                 city, state, zip, quantity, item_subtotal, shipping_handling,
                 ebay_collected_tax, fv_fixed, fv_variable, international_fee,
                 gross_amount, net_amount
             ) VALUES (
-                ${order.order_number}, ${order.item_title}, ${order.item_id}, ${order.buyer_username},
+                ${order.order_number}, ${order.date}, ${order.item_title}, ${order.item_id}, ${order.buyer_username},
                 ${order.buyer_name}, ${order.city}, ${order.state}, ${order.zip}, ${order.quantity},
                 ${order.item_subtotal}, ${order.shipping_handling}, ${order.ebay_collected_tax},
                 ${order.fv_fixed}, ${order.fv_variable}, ${order.international_fee},
