@@ -22,6 +22,7 @@ const FormSchema = z.object({
 
 const OrderData = z.object({
     order_number: z.string(),
+    date: z.date(),
     item_title: z.string(),
     item_id: z.string(),
     buyer_username: z.string(),
@@ -42,6 +43,7 @@ const OrderData = z.object({
 export type orderState = {
     errors?: {
         order_number?: string[];
+        date?: string[];
         item_title?: string[];
         item_id?: string[];
         buyer_username?: string[];
@@ -213,31 +215,31 @@ export async function signUp(
 }
 
 export async function uploadOrders(ordersData: any[]): Promise<orderState> {
+    ordersData = ordersData.map((row: any) => ({
+        ...row,
+        item_id: String(row.item_id), // Ensure item_id is converted to a string
+        zip: String(row.zip), // Ensure zip is converted to a string
+        state: String(row.state), // Ensure state is converted to a string
+    }));
     try {
         // Validate each order data record
         const parsedOrders = ordersData.map(data => OrderData.parse(data));
-
-        // Insert data into the database within a transaction
-        await sql.transaction(async trx => {
-            for (const order of parsedOrders) {
-                await trx.raw(`
-                    INSERT INTO orders (
-                        order_number, item_title, item_id, buyer_username, buyer_name,
-                        city, state, zip, quantity, item_subtotal, shipping_handling,
-                        ebay_collected_tax, fv_fixed, fv_variable, international_fee,
-                        gross_amount, net_amount
-                    )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                `, [
-                    order.order_number, order.item_title, order.item_id, order.buyer_username,
-                    order.buyer_name, order.city, order.state, order.zip, order.quantity,
-                    order.item_subtotal, order.shipping_handling, order.ebay_collected_tax,
-                    order.fv_fixed, order.fv_variable, order.international_fee,
-                    order.gross_amount, order.net_amount
-                ]);
-            }
-        });
-
+        for (const order of parsedOrders) {
+            await sql`
+            INSERT INTO orders (
+                order_number, item_title, item_id, buyer_username, buyer_name,
+                city, state, zip, quantity, item_subtotal, shipping_handling,
+                ebay_collected_tax, fv_fixed, fv_variable, international_fee,
+                gross_amount, net_amount
+            ) VALUES (
+                ${order.order_number}, ${order.item_title}, ${order.item_id}, ${order.buyer_username},
+                ${order.buyer_name}, ${order.city}, ${order.state}, ${order.zip}, ${order.quantity},
+                ${order.item_subtotal}, ${order.shipping_handling}, ${order.ebay_collected_tax},
+                ${order.fv_fixed}, ${order.fv_variable}, ${order.international_fee},
+                ${order.gross_amount}, ${order.net_amount}
+            )
+        `;
+        }
         return { message: 'Successfully uploaded order data.' };
     } catch (error) {
         // Handle validation or SQL errors
@@ -249,9 +251,9 @@ export async function uploadOrders(ordersData: any[]): Promise<orderState> {
             for (const key of Object.keys(fieldErrors)) {
                 errors[key] = fieldErrors[key];
             }
-            return { errors, message: 'Validation Error. Please check the provided data.' };
+            return { message: 'Failed to upload order data.', errors };
         } else {
-            return { message: `Database Error: ${error.message}` };
+            return { message: `Database Error: ${(error as Error)?.message ?? 'An unknown error occurred.'}` };
         }
     }
 }
