@@ -3,9 +3,9 @@
 import React, { useState } from 'react';
 import * as XLSX from 'xlsx';
 import { Button } from '@/app/ui/button';
-import { uploadOrders } from '@/app/lib/actions'; // Make sure this function exists and can handle the uploaded data
+import { uploadPurchases } from '@/app/lib/actions'; // Make sure this function exists and can handle the uploaded data
 
-export default function SalesForm() {
+export default function PurchasesForm() {
     const [file, setFile] = useState<File | null>(null);
     const [isUploading, setIsUploading] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
@@ -35,12 +35,11 @@ export default function SalesForm() {
                 let jsonData = XLSX.utils.sheet_to_json(worksheet);
 
                 try {
-                    // Assuming uploadOrders accepts an array of order records and returns an orderState object
-                    const response = await uploadOrders(jsonData);
-                    setMessage(response.message || 'Sales data uploaded successfully.');
+                    const response = await uploadPurchases(jsonData);
+                    setMessage(response.message || 'Purchases data uploaded successfully.');
                 } catch (error) {
                     // Handle server-side errors
-                    setMessage('Failed to upload sales data.');
+                    setMessage('Failed to upload purchases data.');
                     console.error('Upload error:', error);
                 }
             } else {
@@ -73,7 +72,7 @@ export default function SalesForm() {
                 />
             </div>
             <div className="mt-6 flex justify-end gap-4">
-                <Button type="submit" disabled={isUploading}>Upload Orders</Button>
+                <Button type="submit" disabled={isUploading}>Upload Purchases</Button>
             </div>
             {message && (
                 <p className="mt-2 text-sm text-red-500">{message}</p>

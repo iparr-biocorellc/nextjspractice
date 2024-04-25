@@ -1,32 +1,31 @@
-import Form from '@/app/ui/sales/edit-form';
-import Breadcrumbs from '@/app/ui/sales/breadcrumbs';
-import { fetchOrderByOrderNumber, fetchCustomers } from '@/app/lib/data';
+import Form from '@/app/ui/purchases/edit-form';
+import Breadcrumbs from '@/app/ui/purchases/breadcrumbs';
+import { fetchPurchaseByItemID } from '@/app/lib/data';
 import { notFound } from 'next/navigation';
 
 
 
-export default async function Page({ params }: { params: { order_number: string } }) {
-    const order_number = params.order_number;
-    const [order, customers] = await Promise.all([
-        fetchOrderByOrderNumber(order_number),
-        fetchCustomers(),
+export default async function Page({ params }: { params: { item_id: string } }) {
+    const item_id = params.item_id;
+    const [purchase] = await Promise.all([
+        fetchPurchaseByItemID(item_id),
     ]);
-    if (!order) {
+    if (!purchase) {
         notFound();
     }
     return (
         <main>
             <Breadcrumbs
                 breadcrumbs={[
-                    { label: 'Sales', href: '/dashboard/sales' },
+                    { label: 'Purchases', href: '/dashboard/purchases' },
                     {
-                        label: 'Edit Order',
-                        href: `/dashboard/sales/${order_number}/edit`,
+                        label: 'Edit Purchase',
+                        href: `/dashboard/purchases/${item_id}/edit`,
                         active: true,
                     },
                 ]}
             />
-            {/*<Form order={order} customers={customers} />*/}
+            {/*<Form purchase={purchase} customers={customers} />*/}
         </main>
     );
 }

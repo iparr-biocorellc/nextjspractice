@@ -1,5 +1,5 @@
-import Form from '@/app/ui/sales/create-form';
-import Breadcrumbs from '@/app/ui/sales/breadcrumbs';
+import Form from '@/app/ui/purchases/create-form';
+import Breadcrumbs from '@/app/ui/purchases/breadcrumbs';
 import { fetchCustomers } from '@/app/lib/data';
 
 export default async function Page() {
@@ -9,10 +9,10 @@ export default async function Page() {
         <main>
             <Breadcrumbs
                 breadcrumbs={[
-                    { label: 'Sales', href: '/dashboard/sales' },
+                    { label: 'Purchases', href: '/dashboard/purchases' },
                     {
-                        label: 'Upload Sales',
-                        href: '/dashboard/sales/upload',
+                        label: 'Upload Purchases',
+                        href: '/dashboard/purchases/upload',
                         active: true,
                     },
                 ]}

@@ -1,11 +1,11 @@
-import Pagination from '@/app/ui/sales/pagination';
+import Pagination from '@/app/ui/purchases/pagination';
 import Search from '@/app/ui/search';
-import Table from '@/app/ui/sales/table';
-import { UploadSales } from '@/app/ui/sales/buttons';
+import Table from '@/app/ui/purchases/table';
+import { UploadPurchases } from '@/app/ui/purchases/buttons';
 import { lusitana } from '@/app/ui/fonts';
 // import { Suspense } from 'react';
 // import { InvoicesTableSkeleton } from '@/app/ui/skeletons';
-import { fetchOrdersPages } from '@/app/lib/data';
+import { fetchPurchasesPages } from '@/app/lib/data';
 
 export default async function Page({
     searchParams,
@@ -18,13 +18,13 @@ export default async function Page({
     const query = searchParams?.query || '';
     const currentPage = Number(searchParams?.page) || 1;
 
-    const totalPages = await fetchOrdersPages(query);
+    const totalPages = await fetchPurchasesPages(query);
 
     return (
         <div>
             <div className="mt-4 flex items-center justify-between gap-2 md:mt-8">
-                <Search placeholder="Search sales..." />
-                <UploadSales />
+                <Search placeholder="Search purchases..." />
+                <UploadPurchases />
             </div>
                 {/*<Suspense key={query + currentPage} fallback={<InvoicesTableSkeleton />}>*/}
                     <Table query={query} currentPage={currentPage} />
