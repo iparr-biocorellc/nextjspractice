@@ -64,6 +64,39 @@ export type orderState = {
     message?: string | null;
 };
 
+// Define the schema for purchase data validation
+const PurchaseData = z.object({
+    item_id: z.string(),
+    date: z.string(),
+    platform: z.string(),
+    seller_username: z.string(),
+    listing_title: z.string(),
+    individual_price: z.number(),
+    quantity: z.number(),
+    shipping_price: z.number(),
+    tax: z.number(),
+    total: z.number(),
+    amount_refunded: z.number(),
+});
+
+// Define the type for the state of the purchase upload
+export type purchaseState = {
+    errors?: {
+        item_id?: string[];
+        date?: string[];
+        platform?: string[];
+        seller_username?: string[];
+        listing_title?: string[];
+        individual_price?: string[];
+        quantity?: string[];
+        shipping_price?: string[];
+        tax?: string[];
+        total?: string[];
+        amount_refunded?: string[];
+    };
+    message?: string | null;
+};
+
 const CreateInvoice = FormSchema.omit({ id: true, date: true });
 const UpdateInvoice = FormSchema.omit({ id: true, date: true });
 export type State = {
@@ -168,6 +201,17 @@ export async function deleteOrder(order_number: string) {
         return { message: 'Database Error: Failed to Delete Order.' };
     }
 }
+
+export async function deletePurchase(itemID: string) {
+    try {
+        await sql`DELETE FROM purchases WHERE item_id = ${itemID}`;
+        revalidatePath('/dashboard/purchases');
+        return { message: 'Deleted Purchase.' };
+    } catch (error) {
+        return { message: 'Database Error: Failed to Delete Purchase.' };
+    }
+}
+
 
 export async function authenticate(
     prevState: string | undefined,
@@ -276,6 +320,56 @@ export async function uploadOrders(ordersData: any[]): Promise<orderState> {
                 errors[key] = fieldErrors[key];
             }
             return { message: 'Failed to upload order data.', errors };
+        } else {
+            return { message: `Database Error: ${(error as Error)?.message ?? 'An unknown error occurred.'}` };
+        }
+    }
+}
+
+// Function to upload purchases data
+export async function uploadPurchases(purchasesData: any[]): Promise<purchaseState> {
+    purchasesData = purchasesData.map((row: any) => {
+        // Assuming there is a function excelSerialDateToDate to convert Excel dates
+        const date = excelSerialDateToDate(row.date);
+        // Format the date as 'YYYY-MM-DD'
+        const formattedDate = date.toISOString().split('T')[0];
+
+        return {
+            ...row,
+            item_id: String(row.item_id),
+            date: formattedDate,
+        };
+    });
+
+    try {
+        // Validate each purchase data record against the Zod schema
+        const parsedPurchases = purchasesData.map(data => PurchaseData.parse(data));
+        for (const purchase of parsedPurchases) {
+            await sql`
+        INSERT INTO purchases (
+          item_id, date, platform, seller_username, listing_title, 
+          individual_price, quantity, shipping_price, tax, total, amount_refunded
+        ) VALUES (
+          ${purchase.item_id}, ${purchase.date}, ${purchase.platform}, 
+          ${purchase.seller_username}, ${purchase.listing_title}, 
+          ${purchase.individual_price}, ${purchase.quantity}, 
+          ${purchase.shipping_price}, ${purchase.tax}, ${purchase.total}, 
+          ${purchase.amount_refunded}
+        )
+      `;
+        }
+        return { message: 'Successfully uploaded purchase data.' };
+    } catch (error) {
+        // Handle errors
+        console.error('Failed to upload purchase data:', error);
+        if (error instanceof z.ZodError) {
+            // Transform ZodError into a structure compatible with `purchaseState`
+            const fieldErrors = error.flatten().fieldErrors;
+            let errors: any = {};
+            for (const key of Object.keys(fieldErrors)) {
+                errors[key] = fieldErrors[key];
+            }
+            return { message: 'Failed to upload purchase data.', errors };
         } else {
             return { message: `Database Error: ${(error as Error)?.message ?? 'An unknown error occurred.'}` };
         }

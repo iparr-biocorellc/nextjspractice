@@ -179,6 +179,49 @@ export async function fetchFilteredOrders(query: string, currentPage: number) {
   }
 }
 
+export async function fetchFilteredPurchases(query: string, currentPage: number) {
+  noStore(); // Assuming this function is defined elsewhere to prevent caching
+  const offset = (currentPage - 1) * ITEMS_PER_PAGE;
+
+  try {
+    const purchases = await sql`
+      SELECT
+        item_id,
+        date,
+        platform,
+        seller_username,
+        listing_title,
+        individual_price,
+        quantity,
+        shipping_price,
+        tax,
+        total,
+        amount_refunded
+      FROM purchases
+      WHERE
+        seller_username ILIKE ${`%${query}%`} OR
+        listing_title ILIKE ${`%${query}%`} OR
+        platform ILIKE ${`%${query}%`} OR
+        item_id ILIKE ${`%${query}%`} OR
+        quantity::text ILIKE ${`%${query}%`} OR
+        individual_price::text ILIKE ${`%${query}%`} OR
+        shipping_price::text ILIKE ${`%${query}%`} OR
+        tax::text ILIKE ${`%${query}%`} OR
+        total::text ILIKE ${`%${query}%`} OR
+        amount_refunded::text ILIKE ${`%${query}%`} OR
+        date::text ILIKE ${`%${query}%`}
+      ORDER BY date DESC
+      LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}
+    `;
+
+    return purchases.rows;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch filtered purchases.');
+  }
+}
+
+
 export async function fetchInvoicesPages(query: string) {
   noStore();
   try {
@@ -235,6 +278,35 @@ export async function fetchOrdersPages(query: string) {
   }
 }
 
+export async function fetchPurchasesPages(query: string) {
+  noStore(); // Assuming this function is defined elsewhere to prevent caching
+  try {
+    const count = await sql`SELECT COUNT(*)
+    FROM purchases
+    WHERE
+      seller_username ILIKE ${`%${query}%`} OR
+      listing_title ILIKE ${`%${query}%`} OR
+      platform ILIKE ${`%${query}%`} OR
+      item_id ILIKE ${`%${query}%`} OR
+      date::text ILIKE ${`%${query}%`} OR
+      individual_price::text ILIKE ${`%${query}%`} OR
+      quantity::text ILIKE ${`%${query}%`} OR
+      shipping_price::text ILIKE ${`%${query}%`} OR
+      tax::text ILIKE ${`%${query}%`} OR
+      total::text ILIKE ${`%${query}%`} OR
+      amount_refunded::text ILIKE ${`%${query}%`}
+    `;
+
+    const ITEMS_PER_PAGE = 20; // You should define this constant somewhere in your code.
+    const totalPages = Math.ceil(Number(count.rows[0].count) / ITEMS_PER_PAGE);
+    return totalPages;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch total number of purchases pages.');
+  }
+}
+
+
 export async function fetchOrderByOrderNumber(orderNumber: string) {
   noStore(); // Assuming this function is defined elsewhere to prevent caching
   try {
@@ -272,6 +344,39 @@ export async function fetchOrderByOrderNumber(orderNumber: string) {
   } catch (error) {
     console.error('Database Error:', error);
     throw new Error('Failed to fetch order by ID.');
+  }
+}
+
+export async function fetchPurchaseByItemID(itemID: string) {
+  noStore(); // Assuming this function is defined elsewhere to prevent caching
+  try {
+    const data = await sql`
+      SELECT
+        item_id,
+        date,
+        platform,
+        seller_username,
+        listing_title,
+        individual_price,
+        quantity,
+        shipping_price,
+        tax,
+        total,
+        amount_refunded
+      FROM purchases
+      WHERE item_id = ${itemID};
+    `;
+
+    // Directly return the first item, assuming item IDs are unique
+    const purchase = data.rows[0] ? {
+      ...data.rows[0],
+      date: new Date(data.rows[0].date).toISOString() // Format the date to ISO string if necessary
+    } : null;
+
+    return purchase;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch purchase by item ID.');
   }
 }
 

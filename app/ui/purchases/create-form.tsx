@@ -3,9 +3,9 @@
 import React, { useState } from 'react';
 import * as XLSX from 'xlsx';
 import { Button } from '@/app/ui/button';
-import { uploadOrders } from '@/app/lib/actions'; // Make sure this function exists and can handle the uploaded data
+import { uploadPurchases } from '@/app/lib/actions'; // Make sure this function exists and can handle the uploaded data
 
-export default function SalesForm() {
+export default function PurchasesForm() {
     const [file, setFile] = useState<File | null>(null);
     const [isUploading, setIsUploading] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
@@ -35,12 +35,11 @@ export default function SalesForm() {
                 let jsonData = XLSX.utils.sheet_to_json(worksheet);
 
                 try {
-                    // Assuming uploadOrders accepts an array of order records and returns an orderState object
-                    const response = await uploadOrders(jsonData);
-                    setMessage(response.message || 'Sales data uploaded successfully.');
+                    const response = await uploadPurchases(jsonData);
+                    setMessage(response.message || 'Purchases data uploaded successfully.');
                 } catch (error) {
                     // Handle server-side errors
-                    setMessage('Failed to upload sales data.');
+                    setMessage('Failed to upload purchases data.');
                     console.error('Upload error:', error);
                 }
             } else {
@@ -80,7 +79,7 @@ export default function SalesForm() {
                         className="px-6 py-2 bg-blue-600 text-white text-lg rounded-full
                            hover:bg-blue-700 focus:outline-none focus:ring-2
                            focus:ring-blue-500 focus:ring-opacity-50 disabled:opacity-50">
-                    Upload Orders
+                    Upload Purchases
                 </button>
             </div>
             {message && (
