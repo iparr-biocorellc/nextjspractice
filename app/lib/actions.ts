@@ -1,8 +1,6 @@
 'use server';
 import { signIn, createUser } from '@/auth';
 import { AuthError } from 'next-auth';
-
-
 import { z } from 'zod';
 import { sql } from '@vercel/postgres';
 import { revalidatePath } from 'next/cache';
@@ -22,6 +20,49 @@ const FormSchema = z.object({
     date: z.string(),
 });
 
+const OrderData = z.object({
+    order_number: z.string(),
+    date: z.string(),
+    item_title: z.string(),
+    item_id: z.string(),
+    buyer_username: z.string(),
+    buyer_name: z.string(),
+    city: z.string(),
+    state: z.string(),
+    zip: z.string(),
+    quantity: z.number(),
+    item_subtotal: z.number(),
+    shipping_handling: z.number(),
+    ebay_collected_tax: z.number(),
+    fv_fixed: z.number(),
+    fv_variable: z.number(),
+    international_fee: z.number(),
+    gross_amount: z.number(),
+    net_amount: z.number(),
+});
+export type orderState = {
+    errors?: {
+        order_number?: string[];
+        date?: string[];
+        item_title?: string[];
+        item_id?: string[];
+        buyer_username?: string[];
+        buyer_name?: string[];
+        city?: string[];
+        state?: string[];
+        zip?: string[];
+        quantity?: string[];
+        item_subtotal?: string[];
+        shipping_handling?: string[];
+        ebay_collected_tax?: string[];
+        fv_fixed?: string[];
+        fv_variable?: string[];
+        international_fee?: string[];
+        gross_amount?: string[];
+        net_amount?: string[];
+    };
+    message?: string | null;
+};
 
 const CreateInvoice = FormSchema.omit({ id: true, date: true });
 const UpdateInvoice = FormSchema.omit({ id: true, date: true });
@@ -146,7 +187,6 @@ export async function authenticate(
         throw error;
     }
 }
-
 export async function signUp(
     prevState: string | undefined,
     formData: FormData
@@ -172,4 +212,72 @@ export async function signUp(
         }
     }
     redirect('/login');
+}
+
+function excelSerialDateToDate(serial:number) {
+    const utc_days  = Math.floor(serial - 25569);
+    const utc_value = utc_days * 86400;
+    const date_info = new Date(utc_value * 1000);
+
+    // Optional: to get the date in the local timezone offset
+    const fractional_day = serial - Math.floor(serial) + 0.0000001;
+    let total_seconds = Math.floor(86400 * fractional_day);
+    const seconds = total_seconds % 60;
+    total_seconds -= seconds;
+    const hours = Math.floor(total_seconds / (60 * 60));
+    const minutes = Math.floor(total_seconds / 60) % 60;
+
+    return new Date(date_info.getFullYear(), date_info.getMonth(), date_info.getDate(), hours, minutes, seconds);
+}
+
+export async function uploadOrders(ordersData: any[]): Promise<orderState> {
+    ordersData = ordersData.map((row: any) => {
+        // Convert Excel date serial number to JavaScript Date object
+        const date = excelSerialDateToDate(row.date);
+        // Convert JavaScript Date object to 'YYYY-MM-DD' string format
+        const formattedDate = date.toISOString().split('T')[0];
+
+        return {
+            ...row,
+            item_id: String(row.item_id),
+            zip: String(row.zip),
+            state: String(row.state),
+            date: formattedDate,
+        };
+    });
+    try {
+        // Validate each order data record
+        const parsedOrders = ordersData.map(data => OrderData.parse(data));
+        for (const order of parsedOrders) {
+            await sql`
+            INSERT INTO orders (
+                order_number, date, item_title, item_id, buyer_username, buyer_name,
+                city, state, zip, quantity, item_subtotal, shipping_handling,
+                ebay_collected_tax, fv_fixed, fv_variable, international_fee,
+                gross_amount, net_amount
+            ) VALUES (
+                ${order.order_number}, ${order.date}, ${order.item_title}, ${order.item_id}, ${order.buyer_username},
+                ${order.buyer_name}, ${order.city}, ${order.state}, ${order.zip}, ${order.quantity},
+                ${order.item_subtotal}, ${order.shipping_handling}, ${order.ebay_collected_tax},
+                ${order.fv_fixed}, ${order.fv_variable}, ${order.international_fee},
+                ${order.gross_amount}, ${order.net_amount}
+            )
+        `;
+        }
+        return { message: 'Successfully uploaded order data.' };
+    } catch (error) {
+        // Handle validation or SQL errors
+        console.error('Failed to upload order data:', error);
+        if (error instanceof z.ZodError) {
+            // Transform ZodError into a structure compatible with `orderState`
+            const fieldErrors = error.flatten().fieldErrors;
+            let errors: any = {};
+            for (const key of Object.keys(fieldErrors)) {
+                errors[key] = fieldErrors[key];
+            }
+            return { message: 'Failed to upload order data.', errors };
+        } else {
+            return { message: `Database Error: ${(error as Error)?.message ?? 'An unknown error occurred.'}` };
+        }
+    }
 }
