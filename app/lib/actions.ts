@@ -336,6 +336,7 @@ export async function uploadPurchases(purchasesData: any[]): Promise<purchaseSta
 
         return {
             ...row,
+            item_id: String(row.item_id),
             date: formattedDate,
         };
     });

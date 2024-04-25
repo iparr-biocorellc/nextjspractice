@@ -58,9 +58,9 @@ export default function PurchasesForm() {
     };
 
     return (
-        <form onSubmit={handleSubmit}>
-            <div className="mb-4">
-                <label htmlFor="file" className="block mb-2 text-sm font-medium">
+        <form onSubmit={handleSubmit} className="mx-auto max-w-lg">
+            <div className="mb-6">
+                <label htmlFor="file" className="block mb-2 text-md font-semibold text-gray-700">
                     Upload Excel File
                 </label>
                 <input
@@ -68,15 +68,26 @@ export default function PurchasesForm() {
                     id="file"
                     accept=".xlsx"
                     onChange={handleFileChange}
-                    className="block w-full text-sm text-gray-900 border-gray-300 rounded-lg cursor-pointer focus:ring-blue-500 focus:border-blue-500"
+                    className="block w-full text-md text-gray-500 file:mr-4 file:py-2 file:px-4
+                       file:rounded-full file:border-0 file:text-sm file:font-semibold
+                       file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100
+                       focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
             </div>
-            <div className="mt-6 flex justify-end gap-4">
-                <Button type="submit" disabled={isUploading}>Upload Purchases</Button>
+            <div className="flex justify-end gap-4">
+                <button type="submit" disabled={isUploading}
+                        className="px-6 py-2 bg-blue-600 text-white text-lg rounded-full
+                           hover:bg-blue-700 focus:outline-none focus:ring-2
+                           focus:ring-blue-500 focus:ring-opacity-50 disabled:opacity-50">
+                    Upload Purchases
+                </button>
             </div>
             {message && (
-                <p className="mt-2 text-sm text-red-500">{message}</p>
+                <div className="mt-2 p-2 text-sm text-red-600 bg-red-100 rounded">
+                    <i className="fas fa-exclamation-triangle"></i> {message}
+                </div>
             )}
         </form>
+
     );
 }
