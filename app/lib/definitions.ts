@@ -86,3 +86,40 @@ export type InvoiceForm = {
   amount: number;
   status: 'pending' | 'paid';
 };
+
+export type PurchaseForm = {
+  item_id: string;
+  date: string;
+  platform: string;
+  seller_username: string;
+  listing_title: string;
+  individual_price: number;
+  quantity: number;
+  shipping_price: number;
+  tax: number;
+  total: number;
+  amount_refunded: number;
+};
+
+export type OrderForm = {
+  order_number: string;
+  date: string; // Assuming date only, without time
+  item_title: string;
+  item_id: string;
+  buyer_username: string;
+  buyer_name: string;
+  city: string;
+  state: string;
+  zip: string;
+  quantity: number;
+  item_subtotal: number;
+  shipping_handling: number;
+  ebay_collected_tax: number;
+  fv_fixed: number;
+  fv_variable: number;
+  international_fee: number;
+  gross_amount: number;
+  net_amount: number;
+};
+
+

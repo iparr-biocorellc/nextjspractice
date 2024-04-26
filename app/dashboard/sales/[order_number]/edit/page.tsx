@@ -1,15 +1,14 @@
 import Form from '@/app/ui/sales/edit-form';
 import Breadcrumbs from '@/app/ui/sales/breadcrumbs';
-import { fetchOrderByOrderNumber, fetchCustomers } from '@/app/lib/data';
+import { fetchOrderByOrderNumber } from '@/app/lib/data';
 import { notFound } from 'next/navigation';
 
 
 
 export default async function Page({ params }: { params: { order_number: string } }) {
     const order_number = params.order_number;
-    const [order, customers] = await Promise.all([
+    const [order] = await Promise.all([
         fetchOrderByOrderNumber(order_number),
-        fetchCustomers(),
     ]);
     if (!order) {
         notFound();
@@ -18,7 +17,7 @@ export default async function Page({ params }: { params: { order_number: string 
         <main>
             <Breadcrumbs
                 breadcrumbs={[
-                    { label: 'Sales', href: '/dashboard/sales' },
+                    { label: 'Orders', href: '/dashboard/sales' },
                     {
                         label: 'Edit Order',
                         href: `/dashboard/sales/${order_number}/edit`,
@@ -26,7 +25,7 @@ export default async function Page({ params }: { params: { order_number: string 
                     },
                 ]}
             />
-            {/*<Form order={order} customers={customers} />*/}
+            <Form order={order}/>
         </main>
     );
 }

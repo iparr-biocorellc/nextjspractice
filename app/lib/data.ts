@@ -6,7 +6,8 @@ import {
   InvoicesTable,
   LatestInvoiceRaw,
   User,
-  Revenue,
+  Revenue, PurchaseForm,
+    OrderForm
 } from './definitions';
 import { formatCurrency } from './utils';
 import { unstable_noStore as noStore } from 'next/cache';
@@ -310,7 +311,7 @@ export async function fetchPurchasesPages(query: string) {
 export async function fetchOrderByOrderNumber(orderNumber: string) {
   noStore(); // Assuming this function is defined elsewhere to prevent caching
   try {
-    const data = await sql`
+    const data = await sql<OrderForm>`
       SELECT
         order_number,
         date,
@@ -334,13 +335,11 @@ export async function fetchOrderByOrderNumber(orderNumber: string) {
       WHERE order_number = ${orderNumber};
     `;
 
-    // Directly return the first item, assuming order numbers are unique
-    const order = data.rows[0] ? {
-      ...data.rows[0],
-      // Format date if necessary
-    } : null;
+    const order = data.rows.map((order) => ({
+      ...order,
+    }));
 
-    return order;
+    return order[0];
   } catch (error) {
     console.error('Database Error:', error);
     throw new Error('Failed to fetch order by ID.');
@@ -350,7 +349,7 @@ export async function fetchOrderByOrderNumber(orderNumber: string) {
 export async function fetchPurchaseByItemID(itemID: string) {
   noStore(); // Assuming this function is defined elsewhere to prevent caching
   try {
-    const data = await sql`
+    const data = await sql<PurchaseForm>`
       SELECT
         item_id,
         date,
@@ -366,14 +365,11 @@ export async function fetchPurchaseByItemID(itemID: string) {
       FROM purchases
       WHERE item_id = ${itemID};
     `;
+    const purchase = data.rows.map((purchase) => ({
+      ...purchase,
+    }));
 
-    // Directly return the first item, assuming item IDs are unique
-    const purchase = data.rows[0] ? {
-      ...data.rows[0],
-      date: new Date(data.rows[0].date).toISOString() // Format the date to ISO string if necessary
-    } : null;
-
-    return purchase;
+    return purchase[0];
   } catch (error) {
     console.error('Database Error:', error);
     throw new Error('Failed to fetch purchase by item ID.');

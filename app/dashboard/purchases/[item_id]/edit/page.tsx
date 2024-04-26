@@ -25,7 +25,7 @@ export default async function Page({ params }: { params: { item_id: string } }) 
                     },
                 ]}
             />
-            {/*<Form purchase={purchase} customers={customers} />*/}
+            <Form purchase={purchase}/>
         </main>
     );
 }
