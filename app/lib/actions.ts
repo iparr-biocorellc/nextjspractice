@@ -75,6 +75,45 @@ const OrderData = z.object({
         invalid_type_error: 'Please enter a valid net amount.',
     }),
 });
+const RefundData = z.object({
+    id: z.number({
+        invalid_type_error: 'Please enter a valid refund ID.',
+    }),
+    gross_amount: z.number({
+        invalid_type_error: 'Please enter a valid gross amount.',
+    }),
+    refund_type: z.string({
+        invalid_type_error: 'Please select a refund type.',
+    }),
+    fv_fixed_credit: z.number({
+        invalid_type_error: 'Please enter a valid fixed credit amount.',
+    }),
+    fv_variable_credit: z.number({
+        invalid_type_error: 'Please enter a valid variable credit amount.',
+    }),
+    ebay_tax_refunded: z.number({
+        invalid_type_error: 'Please enter a valid eBay tax refunded amount.',
+    }),
+    net_amount: z.number({
+        invalid_type_error: 'Please enter a valid net amount.',
+    }),
+    date: z.string({
+        invalid_type_error: 'Please enter a valid date.',
+    }),
+});
+export type RefundState = {
+    errors?: {
+        id?: string[];
+        gross_amount?: string[];
+        refund_type?: string[];
+        fv_fixed_credit?: string[];
+        fv_variable_credit?: string[];
+        ebay_tax_refunded?: string[];
+        net_amount?: string[];
+        date?: string[];
+    };
+    message?: string | null;
+};
 export type orderState = {
     errors?: {
         order_number?: string[];
@@ -530,6 +569,50 @@ export async function uploadPurchases(purchasesData: any[]): Promise<purchaseSta
                 errors[key] = fieldErrors[key];
             }
             return { message: 'Failed to upload purchase data.', errors };
+        } else {
+            return { message: `Database Error: ${(error as Error)?.message ?? 'An unknown error occurred.'}` };
+        }
+    }
+}
+
+export async function uploadRefunds(refundsData: any[]): Promise<RefundState> {
+    refundsData = refundsData.map((row: any) => {
+        // Convert Excel date serial number to JavaScript Date object
+        const date = excelSerialDateToDate(row.date);
+        // Convert JavaScript Date object to 'YYYY-MM-DD' string format
+        const formattedDate = date.toISOString().split('T')[0];
+
+        return {
+            ...row,
+            date: formattedDate,
+        };
+    });
+
+    try {
+        // Validate each refund data record
+        const parsedRefunds = refundsData.map(data => RefundData.parse(data));
+        for (const refund of parsedRefunds) {
+            await sql`
+            INSERT INTO refunds (
+                id, gross_amount, refund_type, fv_fixed_credit, fv_variable_credit,
+                ebay_tax_refunded, net_amount, date
+            ) VALUES (
+                ${refund.id}, ${refund.gross_amount}, ${refund.refund_type}, ${refund.fv_fixed_credit},
+                ${refund.fv_variable_credit}, ${refund.ebay_tax_refunded},
+                ${refund.net_amount}, ${refund.date}
+            )
+        `;
+        }
+        return { message: 'Successfully uploaded refund data.' };
+    } catch (error) {
+        console.error('Failed to upload refund data:', error);
+        if (error instanceof z.ZodError) {
+            const fieldErrors = error.flatten().fieldErrors;
+            let errors: any = {};
+            for (const key of Object.keys(fieldErrors)) {
+                errors[key] = fieldErrors[key];
+            }
+            return { message: 'Failed to upload refund data.', errors };
         } else {
             return { message: `Database Error: ${(error as Error)?.message ?? 'An unknown error occurred.'}` };
         }
