@@ -459,6 +459,16 @@ export async function deleteOrder(order_number: string) {
     }
 }
 
+export async function deletePurchaseOrder(order_number: string, item_id: string) {
+    try {
+        await sql`DELETE FROM purchase_orders WHERE order_number = ${order_number} AND item_id = ${item_id}`;
+        revalidatePath(`/dashboard/sales/${order_number}/purchase-cost`);
+        return { message: 'Deleted Purchase Order.' };
+    } catch (error) {
+        return { message: 'Database Error: Failed to Delete Purchase Order.' };
+    }
+}
+
 export async function deletePurchase(itemID: string) {
     try {
         await sql`DELETE FROM purchases WHERE item_id = ${itemID}`;

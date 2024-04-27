@@ -1,6 +1,13 @@
-import {PencilIcon, PlusIcon, TrashIcon, CurrencyDollarIcon, TruckIcon} from '@heroicons/react/24/outline';
+import {
+    PencilIcon,
+    PlusIcon,
+    TrashIcon,
+    CurrencyDollarIcon,
+    TruckIcon,
+    ArrowUturnLeftIcon
+} from '@heroicons/react/24/outline';
 import Link from 'next/link';
-import { deleteOrder } from '@/app/lib/actions';
+import { deleteOrder, deletePurchaseOrder } from '@/app/lib/actions';
 
 
 export function UploadSales() {
@@ -77,6 +84,17 @@ export function UpdatePurchaseCost({ order_number }: { order_number: string }) {
     );
 }
 
+export function UpdatePurchaseOrder({ order_number, item_id }: { order_number: string, item_id: string }) {
+    return (
+        <Link
+            href={`/dashboard/sales/${order_number}/purchase-cost/${item_id}/edit`}
+            className="rounded-md border p-2 hover:bg-gray-100"
+        >
+            <PencilIcon className="w-5" />
+        </Link>
+    );
+}
+
 export function UpdateLabelCost({ order_number }: { order_number: string }) {
     return (
         <Link
@@ -88,10 +106,34 @@ export function UpdateLabelCost({ order_number }: { order_number: string }) {
     );
 }
 
+export function UpdateRefunded({ order_number }: { order_number: string }) {
+    return (
+        <Link
+            href={`/dashboard/sales/${order_number}/refunded`}
+            className="rounded-md border p-2 hover:bg-gray-100"
+        >
+            <ArrowUturnLeftIcon className="w-5" />
+        </Link>
+    );
+
+}
+
 export function DeleteOrder({ order_number }: { order_number: string }) {
     const deleteOrderWithId = deleteOrder.bind(null, order_number);
     return (
         <form action={deleteOrderWithId}>
+            <button className="rounded-md border p-2 hover:bg-gray-100">
+                <span className="sr-only">Delete</span>
+                <TrashIcon className="w-4" />
+            </button>
+        </form>
+    );
+}
+
+export function DeletePurchaseOrder({ order_number, item_id }: { order_number: string, item_id: string }) {
+    const deletePurchaseOrderWithId = deletePurchaseOrder.bind(null, order_number, item_id);
+    return (
+        <form action={deletePurchaseOrderWithId}>
             <button className="rounded-md border p-2 hover:bg-gray-100">
                 <span className="sr-only">Delete</span>
                 <TrashIcon className="w-4" />

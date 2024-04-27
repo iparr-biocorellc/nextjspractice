@@ -28,6 +28,20 @@ type Purchase = {
   cost_outstanding: number; // added to the type
 };
 
+type PurchaseOrder = {
+    item_id: string;
+    date: string;
+    platform: string;
+    seller_username: string;
+    listing_title: string;
+    individual_price: number;
+    quantity: number;
+    shipping_price: number;
+    tax: number;
+    total: number;
+    amount_refunded: number;
+    respective_cost: number;
+};
 
 export async function fetchRevenue() {
   // Add noStore() here to prevent the response from being cached.
@@ -167,7 +181,8 @@ export async function fetchFilteredOrders(query: string, currentPage: number) {
         o.gross_amount,
         o.net_amount,
         COALESCE(po.purchase_cost, 0) AS purchase_cost,
-        COALESCE(lb.total_label_cost, 0) AS label_cost
+        COALESCE(lb.total_label_cost, 0) AS label_cost,
+        COALESCE(rf.total_refund_amount, 0) AS refunded
       FROM orders o
       LEFT JOIN (
         SELECT
@@ -184,6 +199,14 @@ export async function fetchFilteredOrders(query: string, currentPage: number) {
         INNER JOIN labels l ON lo.tracking_number = l.tracking_number
         GROUP BY lo.order_number
       ) lb ON o.order_number = lb.order_number
+      LEFT JOIN (
+        SELECT
+          ro.order_number,
+          SUM(r.gross_amount) AS total_refund_amount
+        FROM refund_orders ro
+        INNER JOIN refunds r ON ro.refund_id = r.id
+        GROUP BY ro.order_number
+      ) rf ON o.order_number = rf.order_number
       WHERE
         o.buyer_username ILIKE ${`%${query}%`} OR
         o.buyer_name ILIKE ${`%${query}%`} OR
@@ -515,5 +538,41 @@ export async function getUser(email: string) {
   } catch (error) {
     console.error('Failed to fetch user:', error);
     throw new Error('Failed to fetch user.');
+  }
+}
+
+export async function fetchPurchaseOrders(order_number: string) {
+  // noStore(); // If you have a function to prevent caching, uncomment this line
+
+  try {
+    const purchaseOrders = await sql`
+      SELECT
+        p.item_id,
+        p.date,
+        p.platform,
+        p.seller_username,
+        p.listing_title,
+        p.individual_price,
+        p.quantity,
+        p.shipping_price,
+        p.tax,
+        p.total,
+        p.amount_refunded,
+        po.respective_cost
+      FROM purchase_orders po
+      JOIN purchases p ON p.item_id = po.item_id
+      WHERE po.order_number = ${order_number}
+      ORDER BY p.date DESC
+    `;
+
+    // Map and return the result as needed
+    const result = purchaseOrders.rows.map(purchaseOrder => ({
+      ...purchaseOrder,
+      respective_cost: parseFloat(purchaseOrder.respective_cost)
+    }));
+    return result as PurchaseOrder[];
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch purchase orders.');
   }
 }
