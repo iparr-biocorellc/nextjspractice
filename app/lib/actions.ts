@@ -216,6 +216,28 @@ export type purchaseState = {
     };
     message?: string | null;
 };
+
+const PurchaseOrderData = z.object({
+    order_number: z.string().min(1, {
+        message: "Order number is required."
+    }),
+    item_id: z.string().min(1, {
+        message: "Item ID is required."
+    }),
+    respective_cost: z.number().nonnegative({
+        message: "Respective cost must be a non-negative number."
+    }),
+});
+
+export type PurchaseOrderState = {
+    errors?: {
+        order_number?: string[];
+        item_id?: string[];
+        respective_cost?: string[];
+    };
+    message?: string | null;
+};
+
 const LabelData = z.object({
     tracking_number: z.string({
         invalid_type_error: 'Please enter a valid tracking number.',
@@ -252,6 +274,7 @@ export type LabelState = {
 
 
 const CreateInvoice = FormSchema.omit({ id: true, date: true });
+const CreatePurchaseOrder = PurchaseOrderData;
 const UpdateInvoice = FormSchema.omit({ id: true, date: true });
 const UpdatePurchase = PurchaseData.omit({ item_id: true });
 const UpdateOrder = OrderData.omit({ order_number: true });
@@ -301,6 +324,46 @@ export async function createInvoice(prevState: State, formData: FormData) {
     // Revalidate the cache for the invoices page and redirect the user.
     revalidatePath('/dashboard/invoices');
     redirect('/dashboard/invoices');
+}
+
+export async function createPurchaseOrder(prevState: PurchaseOrderState, formData: FormData) {
+    // Validate form using Zod
+    const validatedFields = CreatePurchaseOrder.safeParse({
+        order_number: formData.get('order_number'),
+        item_id: formData.get('item_id'),
+        respective_cost: formData.get('respective_cost'),
+    });
+
+    if (!validatedFields.success) {
+        return {
+            errors: validatedFields.error.flatten().fieldErrors,
+            message: 'Missing or invalid fields. Failed to create purchase order.',
+        };
+    }
+
+    const { order_number, item_id, respective_cost } = validatedFields.data;
+
+    try {
+        await sql`
+            INSERT INTO purchase_orders (order_number, item_id, cost)
+            VALUES (${order_number}, ${item_id}, ${respective_cost})
+        `;
+    } catch (error) {
+        return {
+            message: 'Database Error: Failed to create purchase order.',
+        };
+    }
+
+    // Depending on your application's logic you might need to revalidate the cache
+    // and redirect or simply return success message.
+    // e.g., if you use SWR and need to revalidate the data
+    // swr.revalidate('/api/purchase-orders');
+    // return { message: 'Purchase order created successfully.' };
+
+    // For redirection, you would need to handle it outside this function, or if you're using
+    // Next.js' API routes, you could use res.redirect('/some-path').
+    // Alternatively, you can simply return a success message:
+    return { message: 'Purchase order created successfully.' };
 }
 
 export async function updateInvoice(
@@ -817,3 +880,5 @@ export async function linkPurchases(purchaseOrdersData: any[]): Promise<LinkPurc
         }
     }
 }
+
+

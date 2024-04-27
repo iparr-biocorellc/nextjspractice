@@ -7,41 +7,11 @@ import {
   LatestInvoiceRaw,
   User,
   Revenue, PurchaseForm,
-    OrderForm
+    OrderForm, PurchaseOrder, Purchase
 } from './definitions';
 import { formatCurrency } from './utils';
 import { unstable_noStore as noStore } from 'next/cache';
 
-type Purchase = {
-  item_id: string;
-  date: string;
-  platform: string;
-  seller_username: string;
-  listing_title: string;
-  individual_price: number;
-  quantity: number;
-  shipping_price: number;
-  tax: number;
-  total: number;
-  amount_refunded: number;
-  cost_accounted: number; // added to the type
-  cost_outstanding: number; // added to the type
-};
-
-type PurchaseOrder = {
-    item_id: string;
-    date: string;
-    platform: string;
-    seller_username: string;
-    listing_title: string;
-    individual_price: number;
-    quantity: number;
-    shipping_price: number;
-    tax: number;
-    total: number;
-    amount_refunded: number;
-    respective_cost: number;
-};
 
 export async function fetchRevenue() {
   // Add noStore() here to prevent the response from being cached.
@@ -238,7 +208,7 @@ export async function fetchFilteredOrders(query: string, currentPage: number) {
 
 
 
-  export async function fetchFilteredPurchases(query: string, currentPage: number) {
+export async function fetchFilteredPurchases(query: string, currentPage: number) {
   noStore(); // Assuming this function is defined elsewhere to prevent caching
   const offset = (currentPage - 1) * ITEMS_PER_PAGE;
 
@@ -372,7 +342,7 @@ export async function fetchPurchasesPages(query: string) {
       amount_refunded::text ILIKE ${`%${query}%`}
     `;
 
-    const ITEMS_PER_PAGE = 20; // You should define this constant somewhere in your code.
+    const ITEMS_PER_PAGE = 50; // You should define this constant somewhere in your code.
     const totalPages = Math.ceil(Number(count.rows[0].count) / ITEMS_PER_PAGE);
     return totalPages;
   } catch (error) {
@@ -380,6 +350,8 @@ export async function fetchPurchasesPages(query: string) {
     throw new Error('Failed to fetch total number of purchases pages.');
   }
 }
+
+
 
 
 export async function fetchOrderByOrderNumber(orderNumber: string) {
@@ -576,3 +548,87 @@ export async function fetchPurchaseOrders(order_number: string) {
     throw new Error('Failed to fetch purchase orders.');
   }
 }
+
+export async function fetchPurchaseWithCostsByItemID(itemID: string) {
+  noStore(); // Assuming this function is defined elsewhere to prevent caching
+  try {
+    const data = await sql<Purchase>`
+      SELECT
+        p.item_id,
+        p.date,
+        p.platform,
+        p.seller_username,
+        p.listing_title,
+        p.individual_price,
+        p.quantity,
+        p.shipping_price,
+        p.tax,
+        p.total,
+        p.amount_refunded,
+        COALESCE(po.cost_accounted, 0) AS cost_accounted,
+        (p.total - p.amount_refunded - COALESCE(po.cost_accounted, 0)) AS cost_outstanding
+      FROM purchases p
+      LEFT JOIN (
+        SELECT
+          item_id,
+          SUM(respective_cost) AS cost_accounted
+        FROM purchase_orders
+        WHERE item_id = ${itemID} // Ensures that we are only summing costs related to the queried item_id
+        GROUP BY item_id
+      ) po ON p.item_id = po.item_id
+      WHERE p.item_id = ${itemID};
+    `;
+
+    const purchase = data.rows.map((purchase) => ({
+      ...purchase,
+      cost_accounted: purchase.cost_accounted,
+      cost_outstanding: purchase.cost_outstanding
+    }));
+
+    return purchase[0]; // Assuming there's only one record for each item ID
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch purchase by item ID.');
+  }
+}
+
+export async function fetchAllPurchasesWithCostOutstanding() {
+  noStore(); // Assuming this function is defined elsewhere to prevent caching
+  try {
+    const data = await sql<Purchase>`
+      SELECT
+        p.item_id,
+        p.date,
+        p.platform,
+  p.seller_username,
+  p.listing_title,
+  p.individual_price,
+  p.quantity,
+  p.shipping_price,
+  p.tax,
+  p.total,
+  p.amount_refunded,
+  COALESCE(po.cost_accounted, 0) AS cost_accounted,
+  (p.total - p.amount_refunded - COALESCE(po.cost_accounted, 0)) AS cost_outstanding
+FROM purchases p
+LEFT JOIN (
+  SELECT
+    item_id,
+    SUM(respective_cost) AS cost_accounted
+  FROM purchase_orders
+  GROUP BY item_id
+) po ON p.item_id = po.item_id
+ORDER BY p.date DESC;
+
+    `;
+    const purchases = data.rows.map((data) => ({
+        ...data,
+    }));
+    return purchases;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch all purchases with cost outstanding.');
+  }
+}
+
+

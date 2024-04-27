@@ -2,6 +2,7 @@ import { formatDateToLocal, formatCurrency } from '@/app/lib/utils';
 import { fetchPurchaseOrders } from '@/app/lib/data'; // Adjust to fetch orders
 import {DeletePurchaseOrder, UpdatePurchaseOrder} from "@/app/ui/sales/buttons";
 
+
 export default async function PurchaseOrdersTable({
   order_number,
 }: {
