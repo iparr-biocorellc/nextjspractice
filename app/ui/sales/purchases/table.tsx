@@ -27,6 +27,7 @@ export default async function PurchaseOrdersTable({
                 <th scope="col" className="px-3 py-3">Shipping Price</th>
                 <th scope="col" className="px-3 py-3">Tax</th>
                 <th scope="col" className="px-3 py-3">Total</th>
+                <th scope="col" className="px-3 py-3">Amount Refunded</th>
                 <th scope="col" className="px-3 py-3">Respective Cost</th>
                 <th scope="col" className="px-3 py-3">Actions</th>
               </tr>

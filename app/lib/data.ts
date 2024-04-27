@@ -468,39 +468,6 @@ export async function fetchCustomers() {
   }
 }
 
-export async function fetchFilteredCustomers(query: string) {
-  noStore();
-  try {
-    const data = await sql<CustomersTableType>`
-		SELECT
-		  customers.id,
-		  customers.name,
-		  customers.email,
-		  customers.image_url,
-		  COUNT(invoices.id) AS total_invoices,
-		  SUM(CASE WHEN invoices.status = 'pending' THEN invoices.amount ELSE 0 END) AS total_pending,
-		  SUM(CASE WHEN invoices.status = 'paid' THEN invoices.amount ELSE 0 END) AS total_paid
-		FROM customers
-		LEFT JOIN invoices ON customers.id = invoices.customer_id
-		WHERE
-		  customers.name ILIKE ${`%${query}%`} OR
-        customers.email ILIKE ${`%${query}%`}
-		GROUP BY customers.id, customers.name, customers.email, customers.image_url
-		ORDER BY customers.name ASC
-	  `;
-
-    const customers = data.rows.map((customer) => ({
-      ...customer,
-      total_pending: formatCurrency(customer.total_pending),
-      total_paid: formatCurrency(customer.total_paid),
-    }));
-
-    return customers;
-  } catch (err) {
-    console.error('Database Error:', err);
-    throw new Error('Failed to fetch customer table.');
-  }
-}
 
 export async function getUser(email: string) {
   noStore();
@@ -549,6 +516,29 @@ export async function fetchPurchaseOrders(order_number: string) {
   }
 }
 
+export async function fetchPurchaseOrderByID(order_number: string, item_id: string) {
+  noStore(); // Assuming this function is defined elsewhere to prevent caching
+  try {
+    const data = await sql<PurchaseOrder>`
+      SELECT
+        item_id,
+        order_number,
+        respective_cost
+      FROM purchase_orders
+      WHERE order_number = ${order_number} AND item_id = ${item_id};
+    `;
+
+    const purchaseOrder = data.rows.map((purchaseOrder) => ({
+      ...purchaseOrder,
+    }));
+
+    return purchaseOrder[0];
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch purchase order by ID.');
+  }
+}
+
 export async function fetchPurchaseWithCostsByItemID(itemID: string) {
   noStore(); // Assuming this function is defined elsewhere to prevent caching
   try {
@@ -573,7 +563,7 @@ export async function fetchPurchaseWithCostsByItemID(itemID: string) {
           item_id,
           SUM(respective_cost) AS cost_accounted
         FROM purchase_orders
-        WHERE item_id = ${itemID} // Ensures that we are only summing costs related to the queried item_id
+        WHERE item_id = ${itemID}
         GROUP BY item_id
       ) po ON p.item_id = po.item_id
       WHERE p.item_id = ${itemID};

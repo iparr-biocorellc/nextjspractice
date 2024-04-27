@@ -218,11 +218,11 @@ export type purchaseState = {
 };
 
 const PurchaseOrderData = z.object({
-    order_number: z.string().min(1, {
-        message: "Order number is required."
+    order_number: z.string({
+        invalid_type_error: 'Please enter a valid order number.',
     }),
-    item_id: z.string().min(1, {
-        message: "Item ID is required."
+    item_id: z.string({
+        invalid_type_error: 'Please enter a valid item ID.',
     }),
     respective_cost: z.number().nonnegative({
         message: "Respective cost must be a non-negative number."
@@ -331,7 +331,7 @@ export async function createPurchaseOrder(prevState: PurchaseOrderState, formDat
     const validatedFields = CreatePurchaseOrder.safeParse({
         order_number: formData.get('order_number'),
         item_id: formData.get('item_id'),
-        respective_cost: formData.get('respective_cost'),
+        respective_cost: parseFloat(formData.get('respective_cost') as string),
     });
 
     if (!validatedFields.success) {
@@ -345,7 +345,7 @@ export async function createPurchaseOrder(prevState: PurchaseOrderState, formDat
 
     try {
         await sql`
-            INSERT INTO purchase_orders (order_number, item_id, cost)
+            INSERT INTO purchase_orders (order_number, item_id, respective_cost)
             VALUES (${order_number}, ${item_id}, ${respective_cost})
         `;
     } catch (error) {
@@ -359,11 +359,8 @@ export async function createPurchaseOrder(prevState: PurchaseOrderState, formDat
     // e.g., if you use SWR and need to revalidate the data
     // swr.revalidate('/api/purchase-orders');
     // return { message: 'Purchase order created successfully.' };
-
-    // For redirection, you would need to handle it outside this function, or if you're using
-    // Next.js' API routes, you could use res.redirect('/some-path').
-    // Alternatively, you can simply return a success message:
-    return { message: 'Purchase order created successfully.' };
+    revalidatePath(`/dashboard/sales/${order_number}/purchase-cost`);
+    redirect(`/dashboard/sales/${order_number}/purchase-cost`);
 }
 
 export async function updateInvoice(
@@ -530,6 +527,43 @@ export async function deletePurchaseOrder(order_number: string, item_id: string)
     } catch (error) {
         return { message: 'Database Error: Failed to Delete Purchase Order.' };
     }
+}
+
+export async function updatePurchaseOrder(
+    order_number: string,
+    item_id: string,
+    prevState: any,
+    formData: FormData,
+) {
+    const validatedFields = PurchaseOrderData.safeParse({
+        order_number: order_number,
+        item_id: item_id,
+        respective_cost: parseFloat(formData.get('respective_cost') as string),
+    });
+
+    if (!validatedFields.success) {
+        return {
+            errors: validatedFields.error.flatten().fieldErrors,
+            message: 'Missing or invalid fields. Failed to update purchase order.',
+        };
+    }
+
+    const { respective_cost } = validatedFields.data;
+
+    try {
+        await sql`
+            UPDATE purchase_orders
+            SET respective_cost = ${respective_cost}
+            WHERE order_number = ${order_number} AND item_id = ${item_id}
+        `;
+    } catch (error) {
+        return {
+            message: 'Database Error: Failed to update purchase order.',
+        };
+    }
+
+    revalidatePath(`/dashboard/sales/${order_number}/purchase-cost`);
+    redirect(`/dashboard/sales/${order_number}/purchase-cost`);
 }
 
 export async function deletePurchase(itemID: string) {
