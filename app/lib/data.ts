@@ -12,6 +12,23 @@ import {
 import { formatCurrency } from './utils';
 import { unstable_noStore as noStore } from 'next/cache';
 
+type Purchase = {
+  item_id: string;
+  date: string;
+  platform: string;
+  seller_username: string;
+  listing_title: string;
+  individual_price: number;
+  quantity: number;
+  shipping_price: number;
+  tax: number;
+  total: number;
+  amount_refunded: number;
+  cost_accounted: number; // added to the type
+  cost_outstanding: number; // added to the type
+};
+
+
 export async function fetchRevenue() {
   // Add noStore() here to prevent the response from being cached.
   // This is equivalent to in fetch(..., {cache: 'no-store'}).
@@ -125,54 +142,70 @@ export async function fetchFilteredInvoices(
 }
 
 export async function fetchFilteredOrders(query: string, currentPage: number) {
-  noStore(); // Assuming this function is defined elsewhere to prevent caching
+  noStore(); // This function should be defined elsewhere to prevent caching
   const offset = (currentPage - 1) * ITEMS_PER_PAGE;
 
   try {
     const orders = await sql`
       SELECT
-        order_number,
-        date,
-        item_title,
-        item_id,
-        buyer_username,
-        buyer_name,
-        city,
-        state,
-        zip,
-        quantity,
-        item_subtotal,
-        shipping_handling,
-        ebay_collected_tax,
-        fv_fixed,
-        fv_variable,
-        international_fee,
-        gross_amount,
-        net_amount
-      FROM orders
+        o.order_number,
+        o.date,
+        o.item_title,
+        o.item_id,
+        o.buyer_username,
+        o.buyer_name,
+        o.city,
+        o.state,
+        o.zip,
+        o.quantity,
+        o.item_subtotal,
+        o.shipping_handling,
+        o.ebay_collected_tax,
+        o.fv_fixed,
+        o.fv_variable,
+        o.international_fee,
+        o.gross_amount,
+        o.net_amount,
+        COALESCE(po.purchase_cost, 0) AS purchase_cost,
+        COALESCE(lb.total_label_cost, 0) AS label_cost
+      FROM orders o
+      LEFT JOIN (
+        SELECT
+          order_number,
+          SUM(respective_cost) AS purchase_cost
+        FROM purchase_orders
+        GROUP BY order_number
+      ) po ON o.order_number = po.order_number
+      LEFT JOIN (
+        SELECT
+          lo.order_number,
+          SUM(l.cost) AS total_label_cost
+        FROM label_orders lo
+        INNER JOIN labels l ON lo.tracking_number = l.tracking_number
+        GROUP BY lo.order_number
+      ) lb ON o.order_number = lb.order_number
       WHERE
-        buyer_username ILIKE ${`%${query}%`} OR
-        buyer_name ILIKE ${`%${query}%`} OR
-        city ILIKE ${`%${query}%`} OR
-        state ILIKE ${`%${query}%`} OR
-        zip ILIKE ${`%${query}%`} OR
-        item_title ILIKE ${`%${query}%`} OR
-        order_number ILIKE ${`%${query}%`} OR
-        item_id ILIKE ${`%${query}%`} OR
-        quantity::text ILIKE ${`%${query}%`} OR
-        item_subtotal::text ILIKE ${`%${query}%`} OR
-        shipping_handling::text ILIKE ${`%${query}%`} OR
-        ebay_collected_tax::text ILIKE ${`%${query}%`} OR
-        fv_fixed::text ILIKE ${`%${query}%`} OR
-        fv_variable::text ILIKE ${`%${query}%`} OR
-        international_fee::text ILIKE ${`%${query}%`} OR
-        gross_amount::text ILIKE ${`%${query}%`} OR
-        net_amount::text ILIKE ${`%${query}%`} OR
-        date::text ILIKE ${`%${query}%`}
-      ORDER BY date DESC
+        o.buyer_username ILIKE ${`%${query}%`} OR
+        o.buyer_name ILIKE ${`%${query}%`} OR
+        o.city ILIKE ${`%${query}%`} OR
+        o.state ILIKE ${`%${query}%`} OR
+        o.zip ILIKE ${`%${query}%`} OR
+        o.item_title ILIKE ${`%${query}%`} OR
+        o.order_number ILIKE ${`%${query}%`} OR
+        o.item_id ILIKE ${`%${query}%`} OR
+        o.quantity::text ILIKE ${`%${query}%`} OR
+        o.item_subtotal::text ILIKE ${`%${query}%`} OR
+        o.shipping_handling::text ILIKE ${`%${query}%`} OR
+        o.ebay_collected_tax::text ILIKE ${`%${query}%`} OR
+        o.fv_fixed::text ILIKE ${`%${query}%`} OR
+        o.fv_variable::text ILIKE ${`%${query}%`} OR
+        o.international_fee::text ILIKE ${`%${query}%`} OR
+        o.gross_amount::text ILIKE ${`%${query}%`} OR
+        o.net_amount::text ILIKE ${`%${query}%`} OR
+        o.date::text ILIKE ${`%${query}%`}
+      ORDER BY o.date DESC
       LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}
     `;
-
     return orders.rows;
   } catch (error) {
     console.error('Database Error:', error);
@@ -180,47 +213,65 @@ export async function fetchFilteredOrders(query: string, currentPage: number) {
   }
 }
 
-export async function fetchFilteredPurchases(query: string, currentPage: number) {
+
+
+  export async function fetchFilteredPurchases(query: string, currentPage: number) {
   noStore(); // Assuming this function is defined elsewhere to prevent caching
   const offset = (currentPage - 1) * ITEMS_PER_PAGE;
 
   try {
     const purchases = await sql`
       SELECT
-        item_id,
-        date,
-        platform,
-        seller_username,
-        listing_title,
-        individual_price,
-        quantity,
-        shipping_price,
-        tax,
-        total,
-        amount_refunded
-      FROM purchases
+        p.item_id,
+        p.date,
+        p.platform,
+        p.seller_username,
+        p.listing_title,
+        p.individual_price,
+        p.quantity,
+        p.shipping_price,
+        p.tax,
+        p.total,
+        p.amount_refunded,
+        COALESCE(po.cost_accounted, 0) AS cost_accounted,
+        (p.total - p.amount_refunded - COALESCE(po.cost_accounted, 0)) AS cost_outstanding
+      FROM purchases p
+      LEFT JOIN (
+        SELECT
+          item_id,
+          SUM(respective_cost) AS cost_accounted
+        FROM purchase_orders
+        GROUP BY item_id
+      ) po ON p.item_id = po.item_id
       WHERE
-        seller_username ILIKE ${`%${query}%`} OR
-        listing_title ILIKE ${`%${query}%`} OR
-        platform ILIKE ${`%${query}%`} OR
-        item_id ILIKE ${`%${query}%`} OR
-        quantity::text ILIKE ${`%${query}%`} OR
-        individual_price::text ILIKE ${`%${query}%`} OR
-        shipping_price::text ILIKE ${`%${query}%`} OR
-        tax::text ILIKE ${`%${query}%`} OR
-        total::text ILIKE ${`%${query}%`} OR
-        amount_refunded::text ILIKE ${`%${query}%`} OR
-        date::text ILIKE ${`%${query}%`}
-      ORDER BY date DESC
+        p.seller_username ILIKE ${`%${query}%`} OR
+        p.listing_title ILIKE ${`%${query}%`} OR
+        p.platform ILIKE ${`%${query}%`} OR
+        p.item_id ILIKE ${`%${query}%`} OR
+        p.quantity::text ILIKE ${`%${query}%`} OR
+        p.individual_price::text ILIKE ${`%${query}%`} OR
+        p.shipping_price::text ILIKE ${`%${query}%`} OR
+        p.tax::text ILIKE ${`%${query}%`} OR
+        p.total::text ILIKE ${`%${query}%`} OR
+        p.amount_refunded::text ILIKE ${`%${query}%`} OR
+        p.date::text ILIKE ${`%${query}%`}
+      ORDER BY p.date DESC
       LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}
     `;
 
-    return purchases.rows;
+    const result = purchases.rows.map(purchase => ({
+      ...purchase,
+      cost_accounted: parseFloat(purchase.cost_accounted),
+      cost_outstanding: parseFloat(purchase.cost_outstanding)
+    }));
+    return result as Purchase[];
+
   } catch (error) {
     console.error('Database Error:', error);
     throw new Error('Failed to fetch filtered purchases.');
   }
 }
+
 
 
 export async function fetchInvoicesPages(query: string) {

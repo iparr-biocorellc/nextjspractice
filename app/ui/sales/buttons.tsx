@@ -1,4 +1,4 @@
-import { PencilIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
+import {PencilIcon, PlusIcon, TrashIcon, CurrencyDollarIcon, TruckIcon} from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { deleteOrder } from '@/app/lib/actions';
 
@@ -42,13 +42,13 @@ export function UploadLabels() {
 }
 
 // UploadPurchases
-export function UploadPurchases() {
+export function LinkPurchases() {
     return (
         <Link
         href="/dashboard/sales/upload/purchases"
         className="flex h-10 items-center rounded-lg bg-green-600 px-4 text-sm font-medium text-white transition-colors hover:bg-green-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
         >
-        <span className="hidden md:block">Upload Purchases</span>{' '}
+        <span className="hidden md:block">Link Purchases</span>{' '}
         <PlusIcon className="h-5 md:ml-4" />
         </Link>
     );
@@ -64,6 +64,28 @@ export function UpdateOrder({ order_number }: { order_number: string }) {
         <PencilIcon className="w-5" />
       </Link>
   );
+}
+
+export function UpdatePurchaseCost({ order_number }: { order_number: string }) {
+    return (
+        <Link
+            href={`/dashboard/sales/${order_number}/purchase-cost`}
+            className="rounded-md border p-2 hover:bg-gray-100"
+        >
+            <CurrencyDollarIcon className="w-5" />
+        </Link>
+    );
+}
+
+export function UpdateLabelCost({ order_number }: { order_number: string }) {
+    return (
+        <Link
+            href={`/dashboard/sales/${order_number}/label-cost`}
+            className="rounded-md border p-2 hover:bg-gray-100"
+        >
+            <TruckIcon className="w-5" />
+        </Link>
+    );
 }
 
 export function DeleteOrder({ order_number }: { order_number: string }) {

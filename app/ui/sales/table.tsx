@@ -1,7 +1,6 @@
 import { formatDateToLocal, formatCurrency } from '@/app/lib/utils';
 import { fetchFilteredOrders } from '@/app/lib/data'; // Adjust to fetch orders
-import { UpdateOrder, DeleteOrder } from '@/app/ui/sales/buttons';
-import {DeleteInvoice, UpdateInvoice} from "@/app/ui/invoices/buttons";
+import { UpdateOrder, DeleteOrder, UpdatePurchaseCost, UpdateLabelCost } from '@/app/ui/sales/buttons';
 
 export default async function SalesTable({
   query,
@@ -37,6 +36,8 @@ export default async function SalesTable({
                 <th scope="col" className="px-3 py-3">International Fee</th>
                 <th scope="col" className="px-3 py-3">Gross Amount</th>
                 <th scope="col" className="px-3 py-3">Net Amount</th>
+                <th scope="col" className="px-3 py-3">Purchase Cost</th>
+                <th scope="col" className="px-3 py-3">Label Cost</th>
                 <th scope="col" className="px-3 py-3">Actions</th>
               </tr>
               </thead>
@@ -62,8 +63,20 @@ export default async function SalesTable({
                     <td className="px-3 py-1">{formatCurrency(order.international_fee)}</td>
                     <td className="px-3 py-1">{formatCurrency(order.gross_amount)}</td>
                     <td className="px-3 py-1">{formatCurrency(order.net_amount)}</td>
-                    <td>
+                    <td className="px-3 py-1">
                       <div className="flex justify-end gap-3">
+                        <span className="px-3 py-1">{formatCurrency(order.purchase_cost)}</span>
+                        <UpdatePurchaseCost order_number={order.order_number}/>
+                      </div>
+                    </td>
+                    <td className="px-3 py-1">
+                      <div className="flex justify-end gap-3">
+                        <span className="px-3 py-1">{formatCurrency(order.label_cost)}</span>
+                        <UpdateLabelCost order_number={order.order_number}/>
+                      </div>
+                    </td>
+                    <td>
+                      <div className="flex justify-end gap-3 px-3">
                         <UpdateOrder order_number={order.order_number}/>
                         <DeleteOrder order_number={order.order_number}/>
                       </div>

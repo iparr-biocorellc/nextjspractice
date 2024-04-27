@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import * as XLSX from 'xlsx';
-import { uploadPurchases } from '@/app/lib/actions'; // Make sure this function exists and can handle the uploaded data
+import { linkPurchases } from '@/app/lib/actions'; // Make sure this function exists and can handle the uploaded data
 
 export default function PurchasesForm() {
     const [file, setFile] = useState<File | null>(null);
@@ -34,7 +34,7 @@ export default function PurchasesForm() {
                 let jsonData = XLSX.utils.sheet_to_json(worksheet);
 
                 try {
-                    const response = await uploadPurchases(jsonData);
+                    const response = await linkPurchases(jsonData);
                     setMessage(response.message || 'Purchase data uploaded successfully.');
                 } catch (error) {
                     // Handle server-side errors

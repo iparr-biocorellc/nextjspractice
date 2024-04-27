@@ -1,4 +1,4 @@
-import Form from '@/app/ui/sales/purchases/purchase-form';
+import Form from '@/app/ui/sales/labels/label-form';
 import Breadcrumbs from '@/app/ui/sales/breadcrumbs';
 
 export default async function Page() {
@@ -8,8 +8,8 @@ export default async function Page() {
                 breadcrumbs={[
                     { label: 'Sales', href: '/dashboard/sales' },
                     {
-                        label: 'Link Purchases',
-                        href: '/dashboard/sales/upload/purchases',
+                        label: 'Upload Labels',
+                        href: '/dashboard/sales/upload/labels',
                         active: true,
                     },
                 ]}

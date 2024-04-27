@@ -3,6 +3,7 @@ import { fetchFilteredPurchases } from '@/app/lib/data';
 import { UpdatePurchase, DeletePurchase } from '@/app/ui/purchases/buttons';
 import {DeleteInvoice, UpdateInvoice} from "@/app/ui/invoices/buttons";
 
+
 export default async function PurchasesTable({
   query,
   currentPage,
@@ -30,6 +31,8 @@ export default async function PurchasesTable({
                 <th scope="col" className="px-3 py-3">Tax</th>
                 <th scope="col" className="px-3 py-3">Total</th>
                 <th scope="col" className="px-3 py-3">Amount Refunded</th>
+                <th scope="col" className="px-3 py-3">Cost Accounted</th>
+                <th scope="col" className="px-3 py-3">Cost Outstanding</th>
                 <th scope="col" className="px-3 py-3">Actions</th>
               </tr>
               </thead>
@@ -48,7 +51,8 @@ export default async function PurchasesTable({
                     <td className="px-3 py-1">{formatCurrency(purchase.tax)}</td>
                     <td className="px-3 py-1">{formatCurrency(purchase.total)}</td>
                     <td className="px-3 py-1">{formatCurrency(purchase.amount_refunded)}</td>
-
+                    <td className="px-3 py-1">{formatCurrency(purchase.cost_accounted)}</td>
+                    <td className="px-3 py-1">{formatCurrency(purchase.cost_outstanding)}</td>
                     <td>
                       <div className="flex justify-end gap-3">
                         <UpdatePurchase item_id={purchase.item_id}/>

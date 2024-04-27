@@ -5,7 +5,6 @@ import { z } from 'zod';
 import { sql } from '@vercel/postgres';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import {OrderForm} from "@/app/lib/definitions";
 
 const FormSchema = z.object({
     id: z.string(),
@@ -75,6 +74,26 @@ const OrderData = z.object({
         invalid_type_error: 'Please enter a valid net amount.',
     }),
 });
+const LinkPurchaseData = z.object({
+    item_id: z.string({
+        invalid_type_error: 'Please enter a valid item ID.',
+    }),
+    order_number: z.string({
+        invalid_type_error: 'Please enter a valid order number.',
+    }),
+    respective_cost: z.number({
+        invalid_type_error: 'Please enter a valid respective cost.',
+    }),
+});
+export type LinkPurchaseState = {
+    errors?: {
+        item_id?: string[];
+        order_number?: string[];
+        respective_cost?: string[];
+    };
+    message?: string | null;
+};
+
 const RefundData = z.object({
     id: z.number({
         invalid_type_error: 'Please enter a valid refund ID.',
@@ -100,6 +119,9 @@ const RefundData = z.object({
     date: z.string({
         invalid_type_error: 'Please enter a valid date.',
     }),
+    order_number: z.string({
+        invalid_type_error: 'Please enter a valid order number.',
+    }),
 });
 export type RefundState = {
     errors?: {
@@ -111,9 +133,11 @@ export type RefundState = {
         ebay_tax_refunded?: string[];
         net_amount?: string[];
         date?: string[];
+        order_number?: string[];
     };
     message?: string | null;
 };
+
 export type orderState = {
     errors?: {
         order_number?: string[];
@@ -192,6 +216,40 @@ export type purchaseState = {
     };
     message?: string | null;
 };
+const LabelData = z.object({
+    tracking_number: z.string({
+        invalid_type_error: 'Please enter a valid tracking number.',
+    }),
+    shipping_service: z.string({
+        invalid_type_error: 'Please enter a valid shipping service.',
+    }),
+    cost: z.number({
+        invalid_type_error: 'Please enter a valid cost.',
+    }),
+    date: z.string({
+        invalid_type_error: 'Please enter a valid date.',
+    }), // Assuming date comes from the Excel data as a serial date number
+    buyer_username: z.string({
+        invalid_type_error: 'Please enter a valid buyer username.',
+    }),
+    notes: z.string().optional(), // Making it optional in case it's not provided in the Excel
+    order_number: z.string({
+        invalid_type_error: 'Please enter a valid order number.',
+    }),
+});
+export type LabelState = {
+    errors?: {
+        tracking_number?: string[];
+        shipping_service?: string[];
+        cost?: string[];
+        date?: string[];
+        buyer_username?: string[];
+        notes?: string[];
+        order_number?: string[];
+    };
+    message?: string | null;
+};
+
 
 const CreateInvoice = FormSchema.omit({ id: true, date: true });
 const UpdateInvoice = FormSchema.omit({ id: true, date: true });
@@ -577,9 +635,8 @@ export async function uploadPurchases(purchasesData: any[]): Promise<purchaseSta
 
 export async function uploadRefunds(refundsData: any[]): Promise<RefundState> {
     refundsData = refundsData.map((row: any) => {
-        // Convert Excel date serial number to JavaScript Date object
+        // Convert Excel date serial number to JavaScript Date object if necessary
         const date = excelSerialDateToDate(row.date);
-        // Convert JavaScript Date object to 'YYYY-MM-DD' string format
         const formattedDate = date.toISOString().split('T')[0];
 
         return {
@@ -589,24 +646,47 @@ export async function uploadRefunds(refundsData: any[]): Promise<RefundState> {
     });
 
     try {
-        // Validate each refund data record
-        const parsedRefunds = refundsData.map(data => RefundData.parse(data));
-        for (const refund of parsedRefunds) {
+        // Start a transaction if your SQL library supports it
+        await sql`BEGIN`;
+
+        for (const refund of refundsData) {
+            const parsedRefund = RefundData.parse(refund);
+
+            // Insert into refunds and get the inserted id if it's auto-generated
+            const refundResult = await sql`
+        INSERT INTO refunds (
+          id, gross_amount, refund_type, fv_fixed_credit, fv_variable_credit,
+          ebay_tax_refunded, net_amount, date
+        ) VALUES (
+          ${parsedRefund.id}, ${parsedRefund.gross_amount}, ${parsedRefund.refund_type}, 
+          ${parsedRefund.fv_fixed_credit}, ${parsedRefund.fv_variable_credit}, 
+          ${parsedRefund.ebay_tax_refunded}, ${parsedRefund.net_amount}, 
+          ${parsedRefund.date}
+        ) RETURNING id
+      `;
+
+            // Extract the generated id
+            const refundId = refundResult.rows[0].id;
+
+            // Insert into refund_orders
             await sql`
-            INSERT INTO refunds (
-                id, gross_amount, refund_type, fv_fixed_credit, fv_variable_credit,
-                ebay_tax_refunded, net_amount, date
-            ) VALUES (
-                ${refund.id}, ${refund.gross_amount}, ${refund.refund_type}, ${refund.fv_fixed_credit},
-                ${refund.fv_variable_credit}, ${refund.ebay_tax_refunded},
-                ${refund.net_amount}, ${refund.date}
-            )
-        `;
+        INSERT INTO refund_orders (refund_id, order_number) VALUES (
+          ${refundId}, ${parsedRefund.order_number}
+        )
+      `;
         }
-        return { message: 'Successfully uploaded refund data.' };
+
+        // Commit the transaction if everything was successful
+        await sql`COMMIT`;
+
+        return { message: 'Successfully uploaded refund data and associated order numbers.' };
     } catch (error) {
+        // Rollback the transaction in case of an error
+        await sql`ROLLBACK`;
+
         console.error('Failed to upload refund data:', error);
         if (error instanceof z.ZodError) {
+            // Convert the ZodError into your error format
             const fieldErrors = error.flatten().fieldErrors;
             let errors: any = {};
             for (const key of Object.keys(fieldErrors)) {
@@ -614,7 +694,116 @@ export async function uploadRefunds(refundsData: any[]): Promise<RefundState> {
             }
             return { message: 'Failed to upload refund data.', errors };
         } else {
-            return { message: `Database Error: ${(error as Error)?.message ?? 'An unknown error occurred.'}` };
+            // Handle non-validation errors
+            return { message: `Database Error: ${(error as Error).message ?? 'An unknown error occurred.'}` };
+        }
+    }
+}
+
+export async function uploadLabels(labelsData: any[]): Promise<LabelState> {
+    labelsData = labelsData.map((row: any) => {
+        // Convert Excel date serial number to JavaScript Date object if necessary
+        const date = excelSerialDateToDate(row.date);
+        const formattedDate = date.toISOString().split('T')[0];
+
+        return {
+            ...row,
+            tracking_number: String(row.tracking_number),
+            date: formattedDate,
+        };
+    });
+
+    try {
+        // Start a transaction if your SQL library supports it
+        await sql`BEGIN`;
+
+        for (const label of labelsData) {
+            const parsedLabel = LabelData.parse(label);
+
+            // Insert into labels
+            await sql`
+        INSERT INTO labels (
+          tracking_number, shipping_service, cost, date, buyer_username, notes
+        ) VALUES (
+          ${parsedLabel.tracking_number}, ${parsedLabel.shipping_service},
+          ${parsedLabel.cost}, ${parsedLabel.date}, ${parsedLabel.buyer_username},
+          ${parsedLabel.notes}
+        )
+      `;
+
+            // Assuming that tracking_number is unique and can be used to link the label to an order
+            // Insert into label_orders
+            await sql`
+        INSERT INTO label_orders (tracking_number, order_number) VALUES (
+          ${parsedLabel.tracking_number}, ${parsedLabel.order_number}
+        )
+      `;
+        }
+
+        // Commit the transaction if everything was successful
+        await sql`COMMIT`;
+
+        return { message: 'Successfully uploaded label data.' };
+    } catch (error) {
+        // Rollback the transaction in case of an error
+        await sql`ROLLBACK`;
+
+        console.error('Failed to upload label data:', error);
+        if (error instanceof z.ZodError) {
+            // Convert the ZodError into your error format
+            const fieldErrors = error.flatten().fieldErrors;
+            let errors: any = {};
+            for (const key of Object.keys(fieldErrors)) {
+                errors[key] = fieldErrors[key];
+            }
+            return { message: 'Failed to upload label data.', errors };
+        } else {
+            // Handle non-validation errors
+            return { message: `Database Error: ${(error as Error).message ?? 'An unknown error occurred.'}` };
+        }
+    }
+}
+
+export async function linkPurchases(purchaseOrdersData: any[]): Promise<LinkPurchaseState> {
+    // Map through each row and construct the data structure expected by Zod schema
+    purchaseOrdersData = purchaseOrdersData.map((row: any) => ({
+        item_id: String(row.item_id), // Assuming item_id is in the correct format
+        order_number: String(row.order_number), // Assuming order_number is in the correct format
+        respective_cost: Number(row.respective_cost), // Convert to Number in case it's not
+    }));
+
+    try {
+        await sql`BEGIN`; // Start a transaction
+
+        for (const purchaseOrder of purchaseOrdersData) {
+            // Validate the purchase order data
+            const parsedPurchaseOrder = LinkPurchaseData.parse(purchaseOrder);
+
+            // Insert into purchase_orders
+            await sql`
+        INSERT INTO purchase_orders (item_id, order_number, respective_cost) VALUES (
+          ${parsedPurchaseOrder.item_id}, 
+          ${parsedPurchaseOrder.order_number}, 
+          ${parsedPurchaseOrder.respective_cost}
+        )
+      `;
+        }
+
+        await sql`COMMIT`; // Commit the transaction
+        return { message: 'Successfully linked purchase order data.' };
+    } catch (error) {
+        await sql`ROLLBACK`; // Rollback the transaction in case of an error
+
+        console.error('Failed to link purchase order data:', error);
+        if (error instanceof z.ZodError) {
+            const fieldErrors = error.flatten().fieldErrors;
+            let errors: any = {};
+            for (const key of Object.keys(fieldErrors)) {
+                errors[key] = fieldErrors[key];
+            }
+            return { message: 'Failed to link purchase order data.', errors };
+        } else {
+            return { message: `Database Error: ${(error as Error).message ?? 'An unknown error occurred.'}` };
         }
     }
 }
