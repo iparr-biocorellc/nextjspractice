@@ -1,8 +1,6 @@
 import { formatDateToLocal, formatCurrency } from '@/app/lib/utils';
 import { fetchFilteredPurchases } from '@/app/lib/data';
 import { UpdatePurchase, DeletePurchase } from '@/app/ui/purchases/buttons';
-import {DeleteInvoice, UpdateInvoice} from "@/app/ui/invoices/buttons";
-
 
 export default async function PurchasesTable({
   query,
