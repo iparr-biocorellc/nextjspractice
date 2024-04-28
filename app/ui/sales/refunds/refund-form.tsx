@@ -3,9 +3,9 @@
 import React, { useState } from 'react';
 import * as XLSX from 'xlsx';
 import { Button } from '@/app/ui/button';
-import { uploadOrders } from '@/app/lib/actions'; // Make sure this function exists and can handle the uploaded data
+import { uploadRefunds } from '@/app/lib/actions'; // Make sure this function exists and can handle the uploaded data
 
-export default function SalesForm() {
+export default function RefundsForm() {
     const [file, setFile] = useState<File | null>(null);
     const [isUploading, setIsUploading] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
@@ -35,12 +35,11 @@ export default function SalesForm() {
                 let jsonData = XLSX.utils.sheet_to_json(worksheet);
 
                 try {
-                    // Assuming uploadOrders accepts an array of order records and returns an orderState object
-                    const response = await uploadOrders(jsonData);
-                    setMessage(response.message || 'Sales data uploaded successfully.');
+                    const response = await uploadRefunds(jsonData);
+                    setMessage(response.message || 'Refund data uploaded successfully.');
                 } catch (error) {
                     // Handle server-side errors
-                    setMessage('Failed to upload sales data.');
+                    setMessage('Failed to upload refund data.');
                     console.error('Upload error:', error);
                 }
             } else {
@@ -77,10 +76,10 @@ export default function SalesForm() {
             </div>
             <div className="flex justify-end gap-4">
                 <button type="submit" disabled={isUploading}
-                        className="px-6 py-2 bg-blue-600 text-white text-lg rounded-full
-                           hover:bg-blue-700 focus:outline-none focus:ring-2
-                           focus:ring-blue-500 focus:ring-opacity-50 disabled:opacity-50">
-                    Upload Sales
+                        className="px-6 py-2 bg-red-600 text-white text-lg rounded-full
+                           hover:bg-red-700 focus:outline-none focus:ring-2
+                           focus:ring-red-600 focus:ring-opacity-50 disabled:opacity-50">
+                    Upload Refunds
                 </button>
             </div>
             {message && (

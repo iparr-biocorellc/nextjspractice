@@ -1,7 +1,7 @@
 import Pagination from '@/app/ui/sales/pagination';
 import Search from '@/app/ui/search';
 import Table from '@/app/ui/sales/table';
-import { UploadSales, UploadLabels, UploadRefunds } from '@/app/ui/sales/buttons';
+import { UploadSales, UploadLabels, UploadRefunds, LinkPurchases } from '@/app/ui/sales/buttons';
 import { lusitana } from '@/app/ui/fonts';
 // import { Suspense } from 'react';
 // import { InvoicesTableSkeleton } from '@/app/ui/skeletons';
@@ -27,6 +27,7 @@ export default async function Page({
                 <UploadSales />
                 <UploadLabels />
                 <UploadRefunds />
+                <LinkPurchases />
 
             </div>
                 {/*<Suspense key={query + currentPage} fallback={<InvoicesTableSkeleton />}>*/}

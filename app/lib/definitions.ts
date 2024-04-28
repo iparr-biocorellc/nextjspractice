@@ -101,6 +101,12 @@ export type PurchaseForm = {
   amount_refunded: number;
 };
 
+export type PurchaseOrderForm = {
+  item_id: string;
+  order_number: string;
+  respective_cost: number;
+};
+
 export type OrderForm = {
   order_number: string;
   date: string; // Assuming date only, without time
@@ -121,5 +127,60 @@ export type OrderForm = {
   gross_amount: number;
   net_amount: number;
 };
+
+export type Purchase = {
+  item_id: string;
+  date: string;
+  platform: string;
+  seller_username: string;
+  listing_title: string;
+  individual_price: number;
+  quantity: number;
+  shipping_price: number;
+  tax: number;
+  total: number;
+  amount_refunded: number;
+  cost_accounted: number; // added to the type
+  cost_outstanding: number; // added to the type
+};
+
+export type PurchaseOrder = {
+  item_id: string;
+  date: string;
+  platform: string;
+  seller_username: string;
+  listing_title: string;
+  individual_price: number;
+  quantity: number;
+  shipping_price: number;
+  tax: number;
+  total: number;
+  amount_refunded: number;
+  respective_cost: number;
+};
+
+export type Label = {
+  tracking_number: string;
+  shipping_service: string;
+  cost: number;
+  date: string;
+  buyer_username: string;
+  notes: string;
+};
+
+export type Refund = {
+  id: number;
+  gross_amount: number;
+  refund_type: string;
+  fv_fixed_credit: number;
+  fv_variable_credit: number;
+  ebay_tax_refunded: number;
+  net_amount: number;
+  date: string;
+};
+
+
+
+
 
 

@@ -1,17 +1,14 @@
 import { formatDateToLocal, formatCurrency } from '@/app/lib/utils';
-import { fetchFilteredPurchases } from '@/app/lib/data';
-import { UpdatePurchase, DeletePurchase } from '@/app/ui/purchases/buttons';
-import {DeleteInvoice, UpdateInvoice} from "@/app/ui/invoices/buttons";
+import { fetchPurchaseOrders } from '@/app/lib/data'; // Adjust to fetch orders
+import {DeletePurchaseOrder, UpdatePurchaseOrder} from "@/app/ui/sales/buttons";
 
 
-export default async function PurchasesTable({
-  query,
-  currentPage,
+export default async function PurchaseOrdersTable({
+  order_number,
 }: {
-  query: string;
-  currentPage: number;
+  order_number: string;
 }) {
-  const purchases = await fetchFilteredPurchases(query, currentPage);
+  const purchaseOrders = await fetchPurchaseOrders(order_number);
   return (
       <div className="mt-6 flow-root overflow-scroll" style={{maxHeight: "800px"}}>
         <div className="inline-block min-w-full align-middle">
@@ -31,13 +28,12 @@ export default async function PurchasesTable({
                 <th scope="col" className="px-3 py-3">Tax</th>
                 <th scope="col" className="px-3 py-3">Total</th>
                 <th scope="col" className="px-3 py-3">Amount Refunded</th>
-                <th scope="col" className="px-3 py-3">Cost Accounted</th>
-                <th scope="col" className="px-3 py-3">Cost Outstanding</th>
+                <th scope="col" className="px-3 py-3">Respective Cost</th>
                 <th scope="col" className="px-3 py-3">Actions</th>
               </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-              {purchases?.map((purchase) => (
+              {purchaseOrders?.map((purchase) => (
                   <tr key={purchase.item_id}>
                     {/* Data for all columns */}
                     <td className="px-3 py-1">{purchase.item_id}</td>
@@ -51,15 +47,14 @@ export default async function PurchasesTable({
                     <td className="px-3 py-1">{formatCurrency(purchase.tax)}</td>
                     <td className="px-3 py-1">{formatCurrency(purchase.total)}</td>
                     <td className="px-3 py-1">{formatCurrency(purchase.amount_refunded)}</td>
-                    <td className="px-3 py-1">{formatCurrency(purchase.cost_accounted)}</td>
-                    <td className="px-3 py-1">{formatCurrency(purchase.cost_outstanding)}</td>
+                    <td className="px-3 py-1">{formatCurrency(purchase.respective_cost)}</td>
                     <td>
                       <div className="flex justify-end gap-3">
-                        <UpdatePurchase item_id={purchase.item_id}/>
-                        <DeletePurchase item_id={purchase.item_id}/>
+                        <UpdatePurchaseOrder order_number={order_number} item_id={purchase.item_id}/>
+                        <DeletePurchaseOrder order_number={order_number} item_id={purchase.item_id}/>
                       </div>
                     </td>
-                    </tr>
+                  </tr>
               ))}
               </tbody>
             </table>
