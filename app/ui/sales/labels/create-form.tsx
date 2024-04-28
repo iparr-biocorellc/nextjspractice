@@ -28,7 +28,6 @@ export default function CreateLabelForm({order_number}: {order_number: string}) 
       <form action={dispatch}>
         <div className="rounded-md bg-gray-50 p-4 md:p-6">
           <input type="hidden" name="order_number" value={order_number}/>
-
           {/* Tracking Number */}
           <div className="mb-4">
             <label htmlFor="tracking-number" className="mb-2 block text-sm font-medium">

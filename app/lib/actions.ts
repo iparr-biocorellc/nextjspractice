@@ -279,6 +279,7 @@ const UpdateInvoice = FormSchema.omit({ id: true, date: true });
 const UpdatePurchase = PurchaseData.omit({ item_id: true });
 const UpdateOrder = OrderData.omit({ order_number: true });
 const UpdateLabel = LabelData.omit({ tracking_number: true, order_number: true });
+const UpdateRefund = RefundData.omit({ id: true, order_number: true });
 export type State = {
     errors?: {
         customerId?: string[];
@@ -413,6 +414,60 @@ export async function createLabel(prevState: LabelState, formData: FormData) {
     // If everything is successful, redirect
     revalidatePath(`/dashboard/sales/${order_number}/labels`);
     redirect(`/dashboard/sales/${order_number}/labels`);
+}
+
+export async function createRefund(prevState: RefundState, formData: FormData) {
+    const validatedFields = RefundData.safeParse({
+        id: parseInt(formData.get('id') as string),
+        gross_amount: parseFloat(formData.get('gross_amount') as string),
+        refund_type: formData.get('refund_type'),
+        fv_fixed_credit: parseFloat(formData.get('fv_fixed_credit') as string),
+        fv_variable_credit: parseFloat(formData.get('fv_variable_credit') as string),
+        ebay_tax_refunded: parseFloat(formData.get('ebay_tax_refunded') as string),
+        net_amount: parseFloat(formData.get('net_amount') as string),
+        date: formData.get('date'),
+        order_number: formData.get('order_number'),
+    });
+
+    if (!validatedFields.success) {
+        return {
+            errors: validatedFields.error.flatten().fieldErrors,
+            message: 'Missing or invalid fields. Failed to create refund.',
+        };
+    }
+
+    const { id, gross_amount, refund_type, fv_fixed_credit, fv_variable_credit, ebay_tax_refunded, net_amount, date, order_number } = validatedFields.data;
+
+    try {
+        // Start a transaction
+        await sql`BEGIN`;
+
+        // Insert into the refunds table
+        await sql`
+        INSERT INTO refunds (id, gross_amount, refund_type, fv_fixed_credit, fv_variable_credit, ebay_tax_refunded, net_amount, date)
+        VALUES (${id}, ${gross_amount}, ${refund_type}, ${fv_fixed_credit}, ${fv_variable_credit}, ${ebay_tax_refunded}, ${net_amount}, ${date})
+    `;
+
+        // Insert into the refund_orders table
+        await sql`
+        INSERT INTO refund_orders (order_number, refund_id)
+        VALUES (${order_number}, ${id})
+    `;
+
+        // Commit the transaction
+        await sql`COMMIT`;
+    } catch (error) {
+        // If there's an error, neither insert will take place
+        await sql`ROLLBACK`;
+        console.error('Database Error:', error);
+        return {
+            message: 'Database Error: Failed to create refund.',
+        };
+    }
+
+    // If everything is successful, redirect
+    revalidatePath(`/dashboard/sales/${order_number}/refunds`);
+    redirect(`/dashboard/sales/${order_number}/refunds`);
 }
 
 export async function updateInvoice(
@@ -604,6 +659,32 @@ export async function deleteLabel(tracking_number: string) {
     }
 }
 
+export async function deleteRefund(refundId: number) {
+    try {
+        // Start a transaction
+        await sql`BEGIN`;
+
+        // First delete any linked entries in the refund_orders table
+        await sql`DELETE FROM refund_orders WHERE refund_id = ${refundId}`;
+
+        // Then delete the refund from the refunds table
+        await sql`DELETE FROM refunds WHERE id = ${refundId}`;
+
+        // If everything was successful, commit the transaction
+        await sql`COMMIT`;
+        revalidatePath('/dashboard/sales/refunds')
+
+        // Return a success message or handle the success case as needed (e.g., redirect to a confirmation page)
+        return { message: 'Refund successfully deleted.' };
+    } catch (error) {
+        console.error('Database Error:', error);
+        // Attempt to rollback in case of an error
+        await sql`ROLLBACK;`;
+        return { message: 'Database Error: Failed to delete refund.' };
+    }
+}
+
+
 export async function updateLabel(
     tracking_number: string,
     order_number: string,
@@ -645,6 +726,68 @@ export async function updateLabel(
     // If everything is successful, redirect
     revalidatePath(`/dashboard/sales/${order_number}/labels`);
     redirect(`/dashboard/sales/${order_number}/labels`);
+}
+
+export async function updateRefund(
+    refundId: number,
+    order_number: string,
+    prevState: RefundState,
+    formData: FormData,
+) {
+    const validatedFields = UpdateRefund.safeParse({
+        gross_amount: parseFloat(formData.get('gross_amount') as string),
+        refund_type: formData.get('refund_type'),
+        fv_fixed_credit: parseFloat(formData.get('fv_fixed_credit') as string),
+        fv_variable_credit: parseFloat(formData.get('fv_variable_credit') as string),
+        ebay_tax_refunded: parseFloat(formData.get('ebay_tax_refunded') as string),
+        net_amount: parseFloat(formData.get('net_amount') as string),
+        date: formData.get('date'),
+    });
+
+    if (!validatedFields.success) {
+        console.log(validatedFields.error.flatten().fieldErrors);
+        return {
+            errors: validatedFields.error.flatten().fieldErrors,
+            message: 'Missing or invalid fields. Failed to update refund.',
+        };
+    }
+
+    const { gross_amount, refund_type, fv_fixed_credit, fv_variable_credit, ebay_tax_refunded, net_amount, date} = validatedFields.data;
+
+    try {
+        // Start a transaction
+        await sql`BEGIN`;
+
+        // Update the refunds table
+        await sql`
+        UPDATE refunds
+        SET gross_amount = ${gross_amount}, refund_type = ${refund_type}, fv_fixed_credit = ${fv_fixed_credit},
+            fv_variable_credit = ${fv_variable_credit}, ebay_tax_refunded = ${ebay_tax_refunded}, net_amount = ${net_amount},
+            date = ${date}
+        WHERE id = ${refundId}
+    `;
+
+        // Update the refund_orders table
+        await sql`
+        UPDATE refund_orders
+        SET order_number = ${order_number}
+        WHERE refund_id = ${refundId}
+    `;
+
+        // Commit the transaction
+        await sql`COMMIT`;
+    } catch (error) {
+        // If there's an error, neither update will take place
+        await sql`ROLLBACK`;
+        console.error('Database Error:', error);
+        return {
+            message: 'Database Error: Failed to update refund.',
+        };
+    }
+
+    // If everything is successful, redirect
+    revalidatePath(`/dashboard/sales/${order_number}/refunds`);
+    redirect(`/dashboard/sales/${order_number}/refunds`);
 }
 
 export async function updatePurchaseOrder(

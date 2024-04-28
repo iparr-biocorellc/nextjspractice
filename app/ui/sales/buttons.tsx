@@ -7,7 +7,7 @@ import {
     ArrowUturnLeftIcon
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
-import { deleteOrder, deletePurchaseOrder, deleteLabel } from '@/app/lib/actions';
+import { deleteOrder, deletePurchaseOrder, deleteLabel, deleteRefund } from '@/app/lib/actions';
 
 
 export function UploadSales() {
@@ -106,10 +106,33 @@ export function UpdateLabel({ order_number, tracking_number }: { order_number: s
     );
 }
 
+export function UpdateRefund({ order_number, id }: { order_number: string, id: number }) {
+    return (
+        <Link
+            href={`/dashboard/sales/${order_number}/refunds/${id}/edit`}
+            className="rounded-md border p-2 hover:bg-gray-100"
+        >
+            <PencilIcon className="w-5" />
+        </Link>
+    );
+}
+
 export function DeleteLabel({ tracking_number }: { tracking_number: string}) {
     const deleteLabelOrderWithId = deleteLabel.bind(null, tracking_number);
     return (
         <form action={deleteLabelOrderWithId}>
+            <button className="rounded-md border p-2 hover:bg-gray-100">
+                <span className="sr-only">Delete</span>
+                <TrashIcon className="w-4" />
+            </button>
+        </form>
+    );
+}
+
+export function DeleteRefund({ id }: { id: number }) {
+    const deleteRefundWithId = deleteRefund.bind(null, id);
+    return (
+        <form action={deleteRefundWithId}>
             <button className="rounded-md border p-2 hover:bg-gray-100">
                 <span className="sr-only">Delete</span>
                 <TrashIcon className="w-4" />
@@ -132,7 +155,7 @@ export function UpdateLabelCost({ order_number }: { order_number: string }) {
 export function UpdateRefunded({ order_number }: { order_number: string }) {
     return (
         <Link
-            href={`/dashboard/sales/${order_number}/refunded`}
+            href={`/dashboard/sales/${order_number}/refunds`}
             className="rounded-md border p-2 hover:bg-gray-100"
         >
             <ArrowUturnLeftIcon className="w-5" />

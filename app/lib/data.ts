@@ -4,7 +4,7 @@ import {
   LatestInvoiceRaw,
   User,
   Revenue, PurchaseForm,
-    OrderForm, PurchaseOrder, Purchase, Label
+    OrderForm, PurchaseOrder, Purchase, Label, Refund
 } from './definitions';
 import { formatCurrency } from './utils';
 import { unstable_noStore as noStore } from 'next/cache';
@@ -455,6 +455,34 @@ export async function fetchLabelByID(tracking_number: string) {
     }
 }
 
+export async function fetchRefundByID(id: number) {
+    noStore(); // Assuming this function is defined elsewhere to prevent caching
+    try {
+        const data = await sql<Refund>`
+        SELECT
+            id,
+            gross_amount,
+            refund_type,
+            fv_fixed_credit,
+            fv_variable_credit,
+            ebay_tax_refunded,
+            net_amount,
+            date
+        FROM refunds
+        WHERE id = ${id};
+        `;
+
+        const refund = data.rows.map((refund) => ({
+        ...refund,
+        }));
+
+        return refund[0];
+    } catch (error) {
+        console.error('Database Error:', error);
+        throw new Error('Failed to fetch refund by ID.');
+    }
+}
+
 export async function fetchLabels(order_number: string) {
   noStore(); // Assuming this function is defined elsewhere to prevent caching
   try {
@@ -479,6 +507,35 @@ WHERE lo.order_number = ${order_number};
   } catch (error) {
     console.error('Database Error:', error);
     throw new Error('Failed to fetch label orders.');
+  }
+}
+
+export async function fetchRefunds(order_number: string) {
+  noStore(); // Assuming this function is defined elsewhere to prevent caching
+  try {
+    const data = await sql<Refund>`
+      SELECT
+        r.id,
+        r.gross_amount,
+        r.refund_type,
+        r.fv_fixed_credit,
+        r.fv_variable_credit,
+        r.ebay_tax_refunded,
+        r.net_amount,
+        r.date
+      FROM refunds r
+      JOIN refund_orders ro ON r.id = ro.refund_id
+      WHERE ro.order_number = ${order_number};
+    `;
+
+    const refunds = data.rows.map((refund) => ({
+      ...refund,
+    }));
+
+    return refunds;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch refunds.');
   }
 }
 

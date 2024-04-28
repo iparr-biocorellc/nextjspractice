@@ -168,6 +168,17 @@ export type Label = {
   notes: string;
 };
 
+export type Refund = {
+  id: number;
+  gross_amount: number;
+  refund_type: string;
+  fv_fixed_credit: number;
+  fv_variable_credit: number;
+  ebay_tax_refunded: number;
+  net_amount: number;
+  date: string;
+};
+
 
 
 

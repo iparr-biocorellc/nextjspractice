@@ -1,5 +1,5 @@
-import Table from '@/app/ui/sales/labels/table';
-import Form from '@/app/ui/sales/labels/create-form';
+import Table from '@/app/ui/sales/refunds/table';
+import Form from '@/app/ui/sales/refunds/create-form';
 import Breadcrumbs from "@/app/ui/purchases/breadcrumbs";
 
 export default async function Page(
@@ -12,8 +12,8 @@ export default async function Page(
                 breadcrumbs={[
                     {label: 'Sales', href: '/dashboard/sales'},
                     {
-                        label: 'Update Labels',
-                        href: '/dashboard/sales/labels',
+                        label: 'Update Refunds',
+                        href: '/dashboard/sales/refunds',
                         active: true,
                     },
                 ]}
