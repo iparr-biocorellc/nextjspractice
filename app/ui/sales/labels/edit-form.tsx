@@ -206,7 +206,7 @@ export default function EditLabelForm({
 
 
                   <div aria-live="polite" aria-atomic="true">
-                    {state.message && (
+                    {state?.message && (
                         <p className="mt-2 text-sm text-red-500" key={state.message}>
                           {state.message}
                         </p>

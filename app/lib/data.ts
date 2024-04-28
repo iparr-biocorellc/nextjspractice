@@ -134,7 +134,7 @@ export async function fetchFilteredOrders(query: string, currentPage: number) {
       LEFT JOIN (
         SELECT
           ro.order_number,
-          SUM(r.gross_amount) AS total_refund_amount
+          SUM(r.net_amount) AS total_refund_amount
         FROM refund_orders ro
         INNER JOIN refunds r ON ro.refund_id = r.id
         GROUP BY ro.order_number
