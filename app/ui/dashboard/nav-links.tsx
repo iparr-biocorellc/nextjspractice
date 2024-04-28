@@ -27,6 +27,11 @@ const links = [
     icon: WalletIcon,
 
   },
+  {
+    name: 'Expenses',
+    href: '/dashboard/expenses',
+    icon: ReceiptPercentIcon,
+  }
 ];
 
 export default function NavLinks() {

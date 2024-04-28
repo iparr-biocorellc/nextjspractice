@@ -168,6 +168,65 @@ export async function fetchFilteredOrders(query: string, currentPage: number) {
   }
 }
 
+export async function fetchFilteredSubscriptions(query: string, currentPage: number) {
+  noStore(); // Assuming this function is defined elsewhere to prevent caching
+  const offset = (currentPage - 1) * ITEMS_PER_EXPENSE_PAGE;
+
+  try {
+    const subscriptions = await sql`
+      SELECT
+        id,
+        service,
+        frequency,
+        begin_date,
+        cost,
+        archived_cost
+      FROM subscriptions
+      WHERE
+        id::text ILIKE ${`%${query}%`} OR
+        service ILIKE ${`%${query}%`} OR
+        frequency ILIKE ${`%${query}%`} OR
+        begin_date::text ILIKE ${`%${query}%`} OR
+        cost::text ILIKE ${`%${query}%`} OR
+        archived_cost::text ILIKE ${`%${query}%`}
+      ORDER BY begin_date DESC
+      LIMIT ${ITEMS_PER_EXPENSE_PAGE} OFFSET ${offset}
+    `;
+
+    return subscriptions.rows;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch subscriptions.');
+  }
+}
+
+export async function fetchFilteredConsumables(query: string, currentPage: number) {
+  noStore(); // Assuming this function is defined elsewhere to prevent caching
+  const offset = (currentPage - 1) * ITEMS_PER_EXPENSE_PAGE;
+
+  try {
+    const consumables = await sql`
+      SELECT
+        id,
+        item,
+        cost,
+        date
+      FROM consumables
+      WHERE
+        id::text ILIKE ${`%${query}%`} OR
+        item ILIKE ${`%${query}%`} OR
+        cost::text ILIKE ${`%${query}%`} OR
+        date::text ILIKE ${`%${query}%`}
+      ORDER BY date DESC
+      LIMIT ${ITEMS_PER_EXPENSE_PAGE} OFFSET ${offset}
+    `;
+
+    return consumables.rows;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch consumables.');
+  }
+}
 
 
 export async function fetchFilteredPurchases(query: string, currentPage: number) {
@@ -260,6 +319,51 @@ export async function fetchOrdersPages(query: string) {
     throw new Error('Failed to fetch total number of sales pages.');
   }
 }
+
+const ITEMS_PER_EXPENSE_PAGE = 10; // or whatever your page size is
+
+export async function fetchConsumablesPages(query: string) {
+  noStore(); // Assuming this function is defined elsewhere to prevent caching
+  try {
+    const count = await sql`SELECT COUNT(*)
+    FROM consumables
+    WHERE
+      item ILIKE ${`%${query}%`} OR
+      cost::text ILIKE ${`%${query}%`} OR
+      date::text ILIKE ${`%${query}%`} OR
+      id::text ILIKE ${`%${query}%`}
+    `;
+
+    const totalPages = Math.ceil(Number(count.rows[0].count) / ITEMS_PER_EXPENSE_PAGE);
+    return totalPages;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch total number of consumables pages.');
+  }
+}
+
+export async function fetchSubscriptionsPages(query: string) {
+  noStore(); // Assuming this function is defined elsewhere to prevent caching
+  try {
+    const count = await sql`SELECT COUNT(*)
+    FROM subscriptions
+    WHERE
+      service ILIKE ${`%${query}%`} OR
+      frequency ILIKE ${`%${query}%`} OR
+      begin_date::text ILIKE ${`%${query}%`} OR
+      cost::text ILIKE ${`%${query}%`} OR
+      archived_cost::text ILIKE ${`%${query}%`} OR
+      id::text ILIKE ${`%${query}%`}
+    `;
+
+    const totalPages = Math.ceil(Number(count.rows[0].count) / ITEMS_PER_EXPENSE_PAGE);
+    return totalPages;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch total number of subscriptions pages.');
+  }
+}
+
 
 export async function fetchPurchasesPages(query: string) {
   noStore(); // Assuming this function is defined elsewhere to prevent caching
