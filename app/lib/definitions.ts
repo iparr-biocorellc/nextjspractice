@@ -159,4 +159,17 @@ export type PurchaseOrder = {
   respective_cost: number;
 };
 
+export type Label = {
+  tracking_number: string;
+  shipping_service: string;
+  cost: number;
+  date: string;
+  buyer_username: string;
+  notes: string;
+};
+
+
+
+
+
 

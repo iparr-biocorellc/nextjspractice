@@ -278,6 +278,7 @@ const CreatePurchaseOrder = PurchaseOrderData;
 const UpdateInvoice = FormSchema.omit({ id: true, date: true });
 const UpdatePurchase = PurchaseData.omit({ item_id: true });
 const UpdateOrder = OrderData.omit({ order_number: true });
+const UpdateLabel = LabelData.omit({ tracking_number: true, order_number: true });
 export type State = {
     errors?: {
         customerId?: string[];
@@ -361,6 +362,57 @@ export async function createPurchaseOrder(prevState: PurchaseOrderState, formDat
     // return { message: 'Purchase order created successfully.' };
     revalidatePath(`/dashboard/sales/${order_number}/purchase-cost`);
     redirect(`/dashboard/sales/${order_number}/purchase-cost`);
+}
+
+export async function createLabel(prevState: LabelState, formData: FormData) {
+    const validatedFields = LabelData.safeParse({
+        tracking_number: formData.get('tracking_number'),
+        shipping_service: formData.get('shipping_service'),
+        cost: parseFloat(formData.get('cost') as string),
+        date: formData.get('date'),
+        buyer_username: formData.get('buyer_username'),
+        notes: formData.get('notes'),
+        order_number: formData.get('order_number'),
+    });
+
+    if (!validatedFields.success) {
+        return {
+            errors: validatedFields.error.flatten().fieldErrors,
+            message: 'Missing or invalid fields. Failed to create label.',
+        };
+    }
+
+    const { tracking_number, shipping_service, cost, date, buyer_username, notes, order_number } = validatedFields.data;
+
+    try {
+        // Start a transaction
+        await sql`BEGIN`;
+
+        // Insert into the labels table
+        await sql`
+        INSERT INTO labels (tracking_number, shipping_service, cost, date, buyer_username, notes)
+        VALUES (${tracking_number}, ${shipping_service}, ${cost}, ${date}, ${buyer_username}, ${notes})
+    `;
+
+        // Insert into the label_orders table
+        await sql`
+        INSERT INTO label_orders (order_number, tracking_number)
+        VALUES (${order_number}, ${tracking_number})
+    `;
+
+        // Commit the transaction
+        await sql`COMMIT`;
+    } catch (error) {
+        // If there's an error, neither insert will take place
+        await sql`ROLLBACK`;
+        console.error('Database Error:', error);
+        return {
+            message: 'Database Error: Failed to create label.',
+        };
+    }
+    // If everything is successful, redirect
+    revalidatePath(`/dashboard/sales/${order_number}/labels`);
+    redirect(`/dashboard/sales/${order_number}/labels`);
 }
 
 export async function updateInvoice(
@@ -527,6 +579,72 @@ export async function deletePurchaseOrder(order_number: string, item_id: string)
     } catch (error) {
         return { message: 'Database Error: Failed to Delete Purchase Order.' };
     }
+}
+
+export async function deleteLabel(tracking_number: string) {
+    try {
+        // Start a transaction
+        await sql`BEGIN`;
+
+        // First delete the label from the label_orders table
+        await sql`DELETE FROM label_orders WHERE tracking_number = ${tracking_number}`;
+
+        // Then delete the label from the labels table
+        await sql`DELETE FROM labels WHERE tracking_number = ${tracking_number}`;
+
+        // If everything was successful, commit the transaction
+        await sql`COMMIT`;
+        revalidatePath('/dashboard/sales/labels')
+        return { message: 'Label successfully deleted.' };
+    } catch (error) {
+        console.error('Database Error:', error);
+        // Attempt to rollback in case of an error
+        await sql`ROLLBACK;`;
+        return { message: 'Database Error: Failed to delete label.' };
+    }
+}
+
+export async function updateLabel(
+    tracking_number: string,
+    order_number: string,
+    prevState: LabelState,
+    formData: FormData,
+) {
+    const validatedFields = UpdateLabel.safeParse({
+        shipping_service: formData.get('shipping_service'),
+        cost: parseFloat(formData.get('cost') as string),
+        date: formData.get('date'),
+        buyer_username: formData.get('buyer_username'),
+        notes: formData.get('notes'),
+    });
+
+    if (!validatedFields.success) {
+        console.log(validatedFields.error.flatten().fieldErrors);
+        return {
+            errors: validatedFields.error.flatten().fieldErrors,
+            message: 'Missing or invalid fields. Failed to update label.',
+        };
+    }
+
+    const { shipping_service, cost, date, buyer_username, notes } = validatedFields.data;
+
+    try {
+        await sql`
+        UPDATE labels
+        SET shipping_service = ${shipping_service}, cost = ${cost}, date = ${date}, buyer_username = ${buyer_username}, notes = ${notes}
+        WHERE tracking_number = ${tracking_number}
+    `;
+    } catch (error) {
+        // If there's an error, neither update will take place
+        console.error('Database Error:', error);
+        return {
+            message: 'Database Error: Failed to update label.',
+        };
+    }
+
+    // If everything is successful, redirect
+    revalidatePath(`/dashboard/sales/${order_number}/labels`);
+    redirect(`/dashboard/sales/${order_number}/labels`);
 }
 
 export async function updatePurchaseOrder(
@@ -759,7 +877,7 @@ export async function uploadRefunds(refundsData: any[]): Promise<RefundState> {
         for (const refund of refundsData) {
             const parsedRefund = RefundData.parse(refund);
 
-            // Insert into refunds and get the inserted id if it's auto-generated
+            // Insert into refunds and get the inserted [id] if it's auto-generated
             const refundResult = await sql`
         INSERT INTO refunds (
           id, gross_amount, refund_type, fv_fixed_credit, fv_variable_credit,
@@ -772,7 +890,7 @@ export async function uploadRefunds(refundsData: any[]): Promise<RefundState> {
         ) RETURNING id
       `;
 
-            // Extract the generated id
+            // Extract the generated [id]
             const refundId = refundResult.rows[0].id;
 
             // Insert into refund_orders

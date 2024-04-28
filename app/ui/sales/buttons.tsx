@@ -7,7 +7,7 @@ import {
     ArrowUturnLeftIcon
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
-import { deleteOrder, deletePurchaseOrder } from '@/app/lib/actions';
+import { deleteOrder, deletePurchaseOrder, deleteLabel } from '@/app/lib/actions';
 
 
 export function UploadSales() {
@@ -95,10 +95,33 @@ export function UpdatePurchaseOrder({ order_number, item_id }: { order_number: s
     );
 }
 
+export function UpdateLabel({ order_number, tracking_number }: { order_number: string, tracking_number: string }) {
+    return (
+        <Link
+            href={`/dashboard/sales/${order_number}/labels/${tracking_number}/edit`}
+            className="rounded-md border p-2 hover:bg-gray-100"
+        >
+            <TruckIcon className="w-5" />
+        </Link>
+    );
+}
+
+export function DeleteLabel({ tracking_number }: { tracking_number: string}) {
+    const deleteLabelOrderWithId = deleteLabel.bind(null, tracking_number);
+    return (
+        <form action={deleteLabelOrderWithId}>
+            <button className="rounded-md border p-2 hover:bg-gray-100">
+                <span className="sr-only">Delete</span>
+                <TrashIcon className="w-4" />
+            </button>
+        </form>
+    );
+}
+
 export function UpdateLabelCost({ order_number }: { order_number: string }) {
     return (
         <Link
-            href={`/dashboard/sales/${order_number}/label-cost`}
+            href={`/dashboard/sales/${order_number}/labels`}
             className="rounded-md border p-2 hover:bg-gray-100"
         >
             <TruckIcon className="w-5" />

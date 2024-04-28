@@ -1,13 +1,10 @@
 import { sql } from '@vercel/postgres';
 import {
   CustomerField,
-  CustomersTableType,
-  InvoiceForm,
-  InvoicesTable,
   LatestInvoiceRaw,
   User,
   Revenue, PurchaseForm,
-    OrderForm, PurchaseOrder, Purchase
+    OrderForm, PurchaseOrder, Purchase, Label
 } from './definitions';
 import { formatCurrency } from './utils';
 import { unstable_noStore as noStore } from 'next/cache';
@@ -89,41 +86,6 @@ export async function fetchCardData() {
 }
 
 const ITEMS_PER_PAGE = 50;
-export async function fetchFilteredInvoices(
-  query: string,
-  currentPage: number,
-) {
-  noStore();
-  const offset = (currentPage - 1) * ITEMS_PER_PAGE;
-
-  try {
-    const invoices = await sql<InvoicesTable>`
-      SELECT
-        invoices.id,
-        invoices.amount,
-        invoices.date,
-        invoices.status,
-        customers.name,
-        customers.email,
-        customers.image_url
-      FROM invoices
-      JOIN customers ON invoices.customer_id = customers.id
-      WHERE
-        customers.name ILIKE ${`%${query}%`} OR
-        customers.email ILIKE ${`%${query}%`} OR
-        invoices.amount::text ILIKE ${`%${query}%`} OR
-        invoices.date::text ILIKE ${`%${query}%`} OR
-        invoices.status ILIKE ${`%${query}%`}
-      ORDER BY invoices.date DESC
-      LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}
-    `;
-
-    return invoices.rows;
-  } catch (error) {
-    console.error('Database Error:', error);
-    throw new Error('Failed to fetch invoices.');
-  }
-}
 
 export async function fetchFilteredOrders(query: string, currentPage: number) {
   noStore(); // This function should be defined elsewhere to prevent caching
@@ -265,30 +227,6 @@ export async function fetchFilteredPurchases(query: string, currentPage: number)
   }
 }
 
-
-
-export async function fetchInvoicesPages(query: string) {
-  noStore();
-  try {
-    const count = await sql`SELECT COUNT(*)
-    FROM invoices
-    JOIN customers ON invoices.customer_id = customers.id
-    WHERE
-      customers.name ILIKE ${`%${query}%`} OR
-      customers.email ILIKE ${`%${query}%`} OR
-      invoices.amount::text ILIKE ${`%${query}%`} OR
-      invoices.date::text ILIKE ${`%${query}%`} OR
-      invoices.status ILIKE ${`%${query}%`}
-  `;
-
-    const totalPages = Math.ceil(Number(count.rows[0].count) / ITEMS_PER_PAGE);
-    return totalPages;
-  } catch (error) {
-    console.error('Database Error:', error);
-    throw new Error('Failed to fetch total number of invoices.');
-  }
-}
-
 export async function fetchOrdersPages(query: string) {
   noStore(); // Assuming this function is defined elsewhere to prevent caching
   try {
@@ -423,31 +361,6 @@ export async function fetchPurchaseByItemID(itemID: string) {
 }
 
 
-export async function fetchInvoiceById(id: string) {
-  noStore();
-  try {
-    const data = await sql<InvoiceForm>`
-      SELECT
-        invoices.id,
-        invoices.customer_id,
-        invoices.amount,
-        invoices.status
-      FROM invoices
-      WHERE invoices.id = ${id};
-    `;
-
-    const invoice = data.rows.map((invoice) => ({
-      ...invoice,
-      // Convert amount from cents to dollars
-      amount: invoice.amount / 100,
-    }));
-
-    return invoice[0];
-  } catch (error) {
-    console.error('Database Error:', error);
-    throw new Error('Failed to fetch invoice.');
-  }
-}
 
 export async function fetchCustomers() {
   noStore();
@@ -513,6 +426,59 @@ export async function fetchPurchaseOrders(order_number: string) {
   } catch (error) {
     console.error('Database Error:', error);
     throw new Error('Failed to fetch purchase orders.');
+  }
+}
+
+export async function fetchLabelByID(tracking_number: string) {
+    noStore(); // Assuming this function is defined elsewhere to prevent caching
+    try {
+        const data = await sql<Label>`
+        SELECT
+            tracking_number,
+            shipping_service,
+            cost,
+            date,
+            buyer_username,
+            notes
+        FROM labels
+        WHERE tracking_number = ${tracking_number};
+        `;
+
+        const label = data.rows.map((label) => ({
+        ...label,
+        }));
+
+        return label[0];
+    } catch (error) {
+        console.error('Database Error:', error);
+        throw new Error('Failed to fetch label by ID.');
+    }
+}
+
+export async function fetchLabels(order_number: string) {
+  noStore(); // Assuming this function is defined elsewhere to prevent caching
+  try {
+    const data = await sql<Label>`
+      SELECT
+    l.tracking_number,
+    l.shipping_service,
+    l.cost,
+    l.date,
+    l.buyer_username,
+    l.notes
+FROM labels l
+JOIN label_orders lo ON l.tracking_number = lo.tracking_number
+WHERE lo.order_number = ${order_number};
+    `;
+
+    const labelOrders = data.rows.map((labelOrder) => ({
+      ...labelOrder,
+    }));
+
+    return labelOrders;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch label orders.');
   }
 }
 
