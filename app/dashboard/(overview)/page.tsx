@@ -4,12 +4,9 @@ import LatestInvoices from '@/app/ui/dashboard/latest-invoices';
 import CardWrapper from '@/app/ui/dashboard/cards';
 import { lusitana } from '@/app/ui/fonts';
 import { fetchCardData } from '@/app/lib/data';
-import { Suspense } from 'react';
-import {LatestInvoicesSkeleton, RevenueChartSkeleton, CardsSkeleton} from '@/app/ui/skeletons';
 import ProfitMonthlyChart from "@/app/ui/finances/profit-monthly-chart";
 
 export default async function Page() {
-    const { totalPaidInvoices, totalPendingInvoices, numberOfInvoices, numberOfCustomers } = await fetchCardData();
     return (
         <main>
             <h1 className={`${lusitana.className} mb-4 text-xl md:text-2xl`}>
@@ -20,6 +17,7 @@ export default async function Page() {
             </div>
             <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-4 lg:grid-cols-8">
                 <ProfitMonthlyChart year={2023} type={"accrual"}/>
+                <ProfitMonthlyChart year={2023} type={"cash"}/>
             </div>
         </main>
     );

@@ -63,7 +63,6 @@ export async function fetchProfitAccrualMonthly(year: number) {
       GROUP BY DATE_TRUNC('month', o.date)
       ORDER BY DATE_TRUNC('month', o.date);
     `;
-    console.log(data.rows)
     return data.rows;
   } catch (error) {
     console.error('Database Error:', error);
@@ -302,32 +301,69 @@ export async function fetchLatestInvoices() {
 export async function fetchCardData() {
   noStore();
   try {
-    // You can probably combine these into a single SQL query
-    // However, we are intentionally splitting them to demonstrate
-    // how to initialize multiple queries in parallel with JS.
-    const invoiceCountPromise = sql`SELECT COUNT(*) FROM invoices`;
-    const customerCountPromise = sql`SELECT COUNT(*) FROM customers`;
-    const invoiceStatusPromise = sql`SELECT
-         SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END) AS "paid",
-         SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END) AS "pending"
-         FROM invoices`;
+    const revenuePromise = sql`
+        SELECT SUM(gross_amount) AS total_revenue
+        FROM orders
+        WHERE DATE_TRUNC('year', date) = '2023-01-01';
+    `;
+    const profitPromise = sql`
+      SELECT
+        SUM(o.net_amount - COALESCE(po.purchase_cost, 0) - COALESCE(lb.total_label_cost, 0) - COALESCE(rf.total_refund_amount, 0)) AS total_profit
+      FROM orders o
+      LEFT JOIN (
+        SELECT
+          order_number,
+          SUM(respective_cost) AS purchase_cost
+        FROM purchase_orders
+        GROUP BY order_number
+      ) po ON o.order_number = po.order_number
+      LEFT JOIN (
+        SELECT
+          lo.order_number,
+          SUM(l.cost) AS total_label_cost
+        FROM label_orders lo
+        INNER JOIN labels l ON lo.tracking_number = l.tracking_number
+        GROUP BY lo.order_number
+      ) lb ON o.order_number = lb.order_number
+      LEFT JOIN (
+        SELECT
+          ro.order_number,
+          SUM(r.net_amount) AS total_refund_amount
+        FROM refund_orders ro
+        INNER JOIN refunds r ON ro.refund_id = r.id
+        GROUP BY ro.order_number
+      ) rf ON o.order_number = rf.order_number
+      WHERE EXTRACT(YEAR FROM o.date) = 2023
+      GROUP BY DATE_TRUNC('year', o.date);
+    `;
+    const salesPromise = sql`
+      SELECT
+      COUNT(order_number) AS total_sales
+      FROM orders;
+    `;
+    const expensesPromise = sql`
+      SELECT
+        SUM(cost) AS total_expenses
+      FROM consumables;
+    `;
 
     const data = await Promise.all([
-      invoiceCountPromise,
-      customerCountPromise,
-      invoiceStatusPromise,
+      revenuePromise,
+      profitPromise,
+      salesPromise,
+      expensesPromise
     ]);
 
-    const numberOfInvoices = Number(data[0].rows[0].count ?? '0');
-    const numberOfCustomers = Number(data[1].rows[0].count ?? '0');
-    const totalPaidInvoices = formatCurrency(data[2].rows[0].paid ?? '0');
-    const totalPendingInvoices = formatCurrency(data[2].rows[0].pending ?? '0');
+    const revenue = data[0].rows[0].total_revenue;
+    const profit = data[1].rows[0].total_profit;
+    const sales = data[2].rows[0].total_sales;
+    const expenses = data[3].rows[0].total_expenses;
 
     return {
-      numberOfCustomers,
-      numberOfInvoices,
-      totalPaidInvoices,
-      totalPendingInvoices,
+      revenue,
+      profit,
+      sales,
+      expenses,
     };
   } catch (error) {
     console.error('Database Error:', error);
