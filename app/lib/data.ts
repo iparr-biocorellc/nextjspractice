@@ -354,10 +354,10 @@ export async function fetchCardData() {
       expensesPromise
     ]);
 
-    const revenue = data[0].rows[0].total_revenue;
-    const profit = data[1].rows[0].total_profit;
-    const sales = data[2].rows[0].total_sales;
-    const expenses = data[3].rows[0].total_expenses;
+    const revenue = formatCurrency(data[0].rows[0].total_revenue);
+    const profit = formatCurrency(data[1].rows[0].total_profit);
+    const sales = Number(data[2].rows[0].total_sales);
+    const expenses = formatCurrency(data[3].rows[0].total_expenses);
 
     return {
       revenue,
