@@ -6,6 +6,65 @@ import { sql } from '@vercel/postgres';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
+const ConsumableData = z.object({
+    id: z.number({
+        invalid_type_error: 'Please enter a valid consumable ID.',
+    }),
+    date: z.string({
+        invalid_type_error: 'Please enter a valid date.',
+    }),
+    item: z.string({
+        invalid_type_error: 'Please enter a valid item.',
+    }),
+    cost: z.number({
+        invalid_type_error: 'Please enter a valid cost.',
+    }),
+})
+
+export type ConsumableState = {
+    errors?: {
+        id?: string[];
+        date?: string[];
+        item?: string[];
+        cost?: string[];
+    };
+    message?: string | null;
+};
+
+const SubscriptionData = z.object({
+    id: z.number({
+        invalid_type_error: 'Please enter a valid subscription ID.',
+    }),
+    service: z.string({
+        invalid_type_error: 'Please enter a valid service.',
+    }),
+    frequency: z.string({
+        invalid_type_error: 'Please enter a valid frequency.',
+    }),
+    begin_date: z.string({
+        invalid_type_error: 'Please enter a valid begin date.',
+    }),
+    cost: z.number({
+        invalid_type_error: 'Please enter a valid cost.',
+    }),
+    archived_cost: z.number({
+        invalid_type_error: 'Please enter a valid archived cost.',
+    }),
+});
+
+export type SubscriptionState = {
+    errors?: {
+        service?: string[];
+        frequency?: string[];
+        begin_date?: string[];
+        cost?: string[];
+        archived_cost?: string[];
+    };
+    message?: string | null;
+};
+
+
+
 const FormSchema = z.object({
     id: z.string(),
     customerId: z.string({
@@ -273,13 +332,13 @@ export type LabelState = {
 };
 
 
-const CreateInvoice = FormSchema.omit({ id: true, date: true });
 const CreatePurchaseOrder = PurchaseOrderData;
-const UpdateInvoice = FormSchema.omit({ id: true, date: true });
 const UpdatePurchase = PurchaseData.omit({ item_id: true });
 const UpdateOrder = OrderData.omit({ order_number: true });
 const UpdateLabel = LabelData.omit({ tracking_number: true, order_number: true });
 const UpdateRefund = RefundData.omit({ id: true, order_number: true });
+const UpdateSubscription = SubscriptionData.omit({ id: true });
+const UpdateConsumable = ConsumableData.omit({ id: true });
 export type State = {
     errors?: {
         customerId?: string[];
@@ -663,6 +722,77 @@ export async function updateLabel(
     // If everything is successful, redirect
     revalidatePath(`/dashboard/sales/${order_number}/labels`);
     redirect(`/dashboard/sales/${order_number}/labels`);
+}
+
+export async function updateSubscription(
+    subscriptionId: number,
+    prevState: SubscriptionState,
+    formData: FormData,
+) {
+    const validatedFields = UpdateSubscription.safeParse({
+        service: formData.get('service'),
+        frequency: formData.get('frequency'),
+        begin_date: formData.get('begin_date'),
+        cost: parseFloat(formData.get('cost') as string),
+        archived_cost: parseFloat(formData.get('archived_cost') as string),
+    });
+    if (!validatedFields.success) {
+        return {
+            errors: validatedFields.error.flatten().fieldErrors,
+            message: 'Missing or invalid fields. Failed to update subscription.',
+        };
+    }
+    const { service, frequency, begin_date, cost, archived_cost } = validatedFields.data;
+
+    try {
+        await sql`
+            UPDATE subscriptions
+            SET service = ${service}, frequency = ${frequency}, begin_date = ${begin_date}, cost = ${cost}, archived_cost = ${archived_cost}
+            WHERE id = ${subscriptionId}
+        `;
+    } catch (error) {
+        console.error('Database Error:', error);
+        return {
+            message: 'Database Error: Failed to update subscription.',
+        };
+    }
+    revalidatePath('/dashboard/expenses');
+    redirect('/dashboard/expenses');
+}
+
+export async function updateConsumable(
+    consumableId: number,
+    prevState: ConsumableState,
+    formData: FormData,
+) {
+    const validatedFields = UpdateConsumable.safeParse({
+        date: formData.get('date'),
+        item: formData.get('item'),
+        cost: parseFloat(formData.get('cost') as string),
+    });
+
+    if (!validatedFields.success) {
+        return {
+            errors: validatedFields.error.flatten().fieldErrors,
+            message: 'Missing or invalid fields. Failed to update consumable.',
+        };
+    }
+
+    const { date, item, cost } = validatedFields.data;
+
+    try {
+        await sql`
+            UPDATE consumables
+            SET date = ${date}, item = ${item}, cost = ${cost}
+            WHERE id = ${consumableId}
+        `;
+    } catch (error) {
+        return {
+            message: 'Database Error: Failed to update consumable.',
+        };
+    }
+    revalidatePath('/dashboard/expenses');
+    redirect('/dashboard/expenses');
 }
 
 export async function updateRefund(

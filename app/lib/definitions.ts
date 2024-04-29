@@ -79,6 +79,7 @@ export type OrderForm = {
   net_amount: number;
 };
 
+
 export type Purchase = {
   item_id: string;
   date: string;
@@ -128,6 +129,22 @@ export type Refund = {
   ebay_tax_refunded: number;
   net_amount: number;
   date: string;
+};
+
+export type Consumable = {
+    id: number;
+    date: string;
+    item: string;
+    cost: number;
+};
+
+export type Subscription = {
+    id: number;
+    service: string;
+    frequency: string;
+    begin_date: string;
+    cost: number;
+    archived_cost: number;
 };
 
 

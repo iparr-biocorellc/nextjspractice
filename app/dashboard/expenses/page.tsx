@@ -24,8 +24,8 @@ export default async function Page({
         <div className="w-full">
             <div className="mt-4 flex items-center justify-between gap-2 md:mt-8">
                 <Search placeholder="Search consumables and subscriptions..." />
-                <AddConsumable />
-                <AddSubscription />
+                {/*<AddConsumable />*/}
+                {/*<AddSubscription />*/}
             </div>
             <ConsumablesTable query={query} currentPage={page} />
             <SubscriptionsTable query={query} currentPage={page} />

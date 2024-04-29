@@ -1,31 +1,29 @@
-import Form from '@/app/ui/sales/edit-form';
-import Breadcrumbs from '@/app/ui/sales/breadcrumbs';
-import { fetchOrderByOrderNumber } from '@/app/lib/data';
+import Form from '@/app/ui/expenses/subscriptions/edit-form';
+import Breadcrumbs from '@/app/ui/expenses/breadcrumbs';
+import { fetchSubscriptionByID } from '@/app/lib/data';
 import { notFound } from 'next/navigation';
 
-
-
-export default async function Page({ params }: { params: { order_number: string } }) {
-    const order_number = params.order_number;
-    const [order] = await Promise.all([
-        fetchOrderByOrderNumber(order_number),
+export default async function Page({ params }: { params: { id: number } }) {
+    const id = params.id;
+    const [subscription] = await Promise.all([
+        fetchSubscriptionByID(id),
     ]);
-    if (!order) {
+    if (!subscription) {
         notFound();
     }
     return (
         <main>
             <Breadcrumbs
                 breadcrumbs={[
-                    { label: 'Orders', href: '/dashboard/sales' },
+                    { label: 'Expenses', href: '/dashboard/expenses' },
                     {
-                        label: 'Edit Order',
-                        href: `/dashboard/sales/${order_number}/edit`,
+                        label: 'Edit Subscription',
+                        href: `/dashboard/expenses/subscriptions/${id}/edit`,
                         active: true,
                     },
                 ]}
             />
-            <Form order={order}/>
+            <Form subscription={subscription}/>
         </main>
     );
 }

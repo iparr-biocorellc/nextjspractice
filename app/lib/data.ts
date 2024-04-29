@@ -4,7 +4,7 @@ import {
   LatestInvoiceRaw,
   User,
   Revenue, PurchaseForm,
-  OrderForm, PurchaseOrder, Purchase, Label, Refund, DollarMonth, DollarYear
+  OrderForm, PurchaseOrder, Purchase, Label, Refund, DollarMonth, DollarYear, Consumable, Subscription
 } from './definitions';
 import { formatCurrency } from './utils';
 import { unstable_noStore as noStore } from 'next/cache';
@@ -720,6 +720,7 @@ export async function fetchOrderByOrderNumber(orderNumber: string) {
   }
 }
 
+
 export async function fetchPurchaseByItemID(itemID: string) {
   noStore(); // Assuming this function is defined elsewhere to prevent caching
   try {
@@ -870,6 +871,46 @@ export async function fetchRefundByID(id: number) {
     } catch (error) {
         console.error('Database Error:', error);
         throw new Error('Failed to fetch refund by ID.');
+    }
+}
+
+export async function fetchConsumableByID(id: number) {
+    noStore(); // Assuming this function is defined elsewhere to prevent caching
+    try {
+        const data = await sql<Consumable>`
+        SELECT id, date, item, cost            
+        FROM consumables
+        WHERE id = ${id};
+        `;
+
+        const consumable = data.rows.map((consumable) => ({
+        ...consumable,
+        }));
+
+        return consumable[0];
+    } catch (error) {
+        console.error('Database Error:', error);
+        throw new Error('Failed to fetch consumable by ID.');
+    }
+}
+
+export async function fetchSubscriptionByID(id: number) {
+    noStore(); // Assuming this function is defined elsewhere to prevent caching
+    try {
+        const data = await sql<Subscription>`
+        SELECT id, service, frequency, begin_date, cost, archived_cost
+        FROM subscriptions
+        WHERE id = ${id};
+        `;
+
+        const subscription = data.rows.map((subscription) => ({
+        ...subscription,
+        }));
+
+        return subscription[0];
+    } catch (error) {
+        console.error('Database Error:', error);
+        throw new Error('Failed to fetch subscription by ID.');
     }
 }
 
