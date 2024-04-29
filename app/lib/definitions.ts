@@ -14,6 +14,16 @@ export type Revenue = {
   revenue: number;
 };
 
+export type DollarMonth = {
+  month: string;
+  dollar: number;
+};
+
+export type DollarYear = {
+    year: number;
+    dollar: number;
+};
+
 export type LatestInvoice = {
   id: string;
   name: string;

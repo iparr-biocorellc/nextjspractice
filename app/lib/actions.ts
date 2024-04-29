@@ -543,6 +543,26 @@ export async function deleteOrder(order_number: string) {
     }
 }
 
+export async function deleteSubscription(id: number) {
+    try {
+        await sql`DELETE FROM subscriptions WHERE id = ${id}`;
+        revalidatePath('/dashboard/expenses/subscriptions');
+        return { message: 'Deleted Subscription.' };
+    } catch (error) {
+        return { message: 'Database Error: Failed to Delete Subscription.' };
+    }
+}
+
+export async function deleteConsumable(id: number) {
+    try {
+        await sql`DELETE FROM consumables WHERE id = ${id}`;
+        revalidatePath('/dashboard/expenses/consumables');
+        return { message: 'Deleted Consumable.' };
+    } catch (error) {
+        return { message: 'Database Error: Failed to Delete Consumable.' };
+    }
+}
+
 export async function deletePurchaseOrder(order_number: string, item_id: string) {
     try {
         await sql`DELETE FROM purchase_orders WHERE order_number = ${order_number} AND item_id = ${item_id}`;

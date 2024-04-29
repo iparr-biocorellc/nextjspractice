@@ -4,7 +4,7 @@ import {
   LatestInvoiceRaw,
   User,
   Revenue, PurchaseForm,
-    OrderForm, PurchaseOrder, Purchase, Label, Refund
+  OrderForm, PurchaseOrder, Purchase, Label, Refund, DollarMonth, DollarYear
 } from './definitions';
 import { formatCurrency } from './utils';
 import { unstable_noStore as noStore } from 'next/cache';
@@ -27,6 +27,255 @@ export async function fetchRevenue() {
     throw new Error('Failed to fetch revenue data.');
   }
 }
+
+export async function fetchProfitAccrualMonthly(year: number) {
+  noStore();
+  try {
+    const data = await sql<DollarMonth>`
+      SELECT
+        TO_CHAR(DATE_TRUNC('month', o.date), 'Mon') AS month,
+        SUM(o.net_amount - COALESCE(po.purchase_cost, 0) - COALESCE(lb.total_label_cost, 0) - COALESCE(rf.total_refund_amount, 0)) AS dollar
+      FROM orders o
+      LEFT JOIN (
+        SELECT
+          order_number,
+          SUM(respective_cost) AS purchase_cost
+        FROM purchase_orders
+        GROUP BY order_number
+      ) po ON o.order_number = po.order_number
+      LEFT JOIN (
+        SELECT
+          lo.order_number,
+          SUM(l.cost) AS total_label_cost
+        FROM label_orders lo
+        INNER JOIN labels l ON lo.tracking_number = l.tracking_number
+        GROUP BY lo.order_number
+      ) lb ON o.order_number = lb.order_number
+      LEFT JOIN (
+        SELECT
+          ro.order_number,
+          SUM(r.net_amount) AS total_refund_amount
+        FROM refund_orders ro
+        INNER JOIN refunds r ON ro.refund_id = r.id
+        GROUP BY ro.order_number
+      ) rf ON o.order_number = rf.order_number
+      WHERE EXTRACT(YEAR FROM o.date) = ${year}
+      GROUP BY DATE_TRUNC('month', o.date)
+      ORDER BY DATE_TRUNC('month', o.date);
+    `;
+    return data.rows;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch profit accrual data.');
+  }
+}
+
+export async function fetchProfitCashMonthly(year: number) {
+  noStore();
+  try {
+    const data = await sql<DollarMonth>`
+      WITH monthly_orders AS (
+        SELECT
+            date_trunc('month', date) AS month,
+            SUM(net_amount) AS total_net_amount
+        FROM
+            orders
+        WHERE
+            EXTRACT(YEAR FROM date) = ${year}
+        GROUP BY
+            month
+      ),
+      monthly_refunds AS (
+        SELECT
+            date_trunc('month', date) AS month,
+            SUM(net_amount) AS total_net_refund
+        FROM
+            refunds
+        WHERE
+            EXTRACT(YEAR FROM date) = ${year}
+        GROUP BY
+            month
+      ),
+      monthly_labels AS (
+        SELECT
+            date_trunc('month', date) AS month,
+            SUM(cost) AS total_label_cost
+        FROM
+            labels
+        WHERE
+            EXTRACT(YEAR FROM date) = ${year}
+        GROUP BY
+            month
+      ),
+      monthly_purchases AS (
+        SELECT
+            date_trunc('month', date) AS month,
+            SUM(total) AS total_purchase,
+            SUM(amount_refunded) AS total_refunded
+        FROM
+            purchases
+        WHERE
+            EXTRACT(YEAR FROM date) = ${year}
+        GROUP BY
+            month
+      ),
+      monthly_consumables AS (
+        SELECT
+            date_trunc('month', date) AS month,
+            SUM(cost) AS total_consumable_cost
+        FROM
+            consumables
+        WHERE
+            EXTRACT(YEAR FROM date) = ${year}
+        GROUP BY
+            month
+      )
+      SELECT
+          to_char(mo.month, 'Mon') AS month,
+          COALESCE(mo.total_net_amount, 0) - 
+          COALESCE(mr.total_net_refund, 0) -
+          COALESCE(ml.total_label_cost, 0) -
+          COALESCE(mp.total_purchase, 0) + 
+          COALESCE(mp.total_refunded, 0) -
+          COALESCE(mc.total_consumable_cost, 0) AS dollar
+      FROM
+          monthly_orders mo
+      FULL OUTER JOIN monthly_refunds mr ON mo.month = mr.month
+      FULL OUTER JOIN monthly_labels ml ON mo.month = ml.month
+      FULL OUTER JOIN monthly_purchases mp ON mo.month = mp.month
+      FULL OUTER JOIN monthly_consumables mc ON mo.month = mc.month
+      ORDER BY
+          mo.month;
+    `;
+    return data.rows;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch profit accrual data.');
+  }
+}
+
+
+
+
+export async function fetchProfitAccrualYearly() {
+    noStore();
+    try {
+        const data = await sql<DollarYear>`
+        SELECT
+            TO_CHAR(DATE_TRUNC('year', o.date), 'YYYY') AS year,
+            SUM(o.net_amount - COALESCE(po.purchase_cost, 0) - COALESCE(lb.total_label_cost, 0) - COALESCE(rf.total_refund_amount, 0)) AS dollar
+        FROM orders o
+        LEFT JOIN (
+            SELECT
+            order_number,
+            SUM(respective_cost) AS purchase_cost
+            FROM purchase_orders
+            GROUP BY order_number
+        ) po ON o.order_number = po.order_number
+        LEFT JOIN (
+            SELECT
+            lo.order_number,
+            SUM(l.cost) AS total_label_cost
+            FROM label_orders lo
+            INNER JOIN labels l ON lo.tracking_number = l.tracking_number
+            GROUP BY lo.order_number
+        ) lb ON o.order_number = lb.order_number
+        LEFT JOIN (
+            SELECT
+            ro.order_number,
+            SUM(r.net_amount) AS total_refund_amount
+            FROM refund_orders ro
+            INNER JOIN refunds r ON ro.refund_id = r.id
+            GROUP BY ro.order_number
+        ) rf ON o.order_number = rf.order_number
+        GROUP BY DATE_TRUNC('year', o.date)
+        ORDER BY DATE_TRUNC('year', o.date);
+        `;
+
+        return data.rows;
+    } catch (error) {
+        console.error('Database Error:', error);
+        throw new Error('Failed to fetch profit accrual data.');
+    }
+}
+
+
+export async function fetchProfitCashYearly() {
+  noStore();
+  try {
+    const data = await sql<DollarYear>`
+      WITH yearly_orders AS (
+        SELECT
+            date_trunc('year', date) AS year,
+            SUM(net_amount) AS total_net_amount
+        FROM
+            orders
+        GROUP BY
+            year
+      ),
+      yearly_refunds AS (
+        SELECT
+            date_trunc('year', date) AS year,
+            SUM(net_amount) AS total_net_refund
+        FROM
+            refunds
+        GROUP BY
+            year
+      ),
+      yearly_labels AS (
+        SELECT
+            date_trunc('year', date) AS year,
+            SUM(cost) AS total_label_cost
+        FROM
+            labels
+        GROUP BY
+            year
+      ),
+      yearly_purchases AS (
+        SELECT
+            date_trunc('year', date) AS year,
+            SUM(total) AS total_purchase,
+            SUM(amount_refunded) AS total_refunded
+        FROM
+            purchases
+        GROUP BY
+            year
+      ),
+      yearly_consumables AS (
+        SELECT
+            date_trunc('year', date) AS year,
+            SUM(cost) AS total_consumable_cost
+        FROM
+            consumables
+        GROUP BY
+            year
+      )
+      SELECT
+          to_char(yo.year, 'YYYY') AS year,
+          COALESCE(yo.total_net_amount, 0) - 
+          COALESCE(yr.total_net_refund, 0) -
+          COALESCE(yl.total_label_cost, 0) -
+          COALESCE(yp.total_purchase, 0) + 
+          COALESCE(yp.total_refunded, 0) -
+          COALESCE(yc.total_consumable_cost, 0) AS dollar
+      FROM
+          yearly_orders yo
+      FULL OUTER JOIN yearly_refunds yr ON yo.year = yr.year
+      FULL OUTER JOIN yearly_labels yl ON yo.year = yl.year
+      FULL OUTER JOIN yearly_purchases yp ON yo.year = yp.year
+      FULL OUTER JOIN yearly_consumables yc ON yo.year = yc.year
+      ORDER BY
+          yo.year;
+    `;
+    return data.rows;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch profit data.');
+  }
+}
+
+
+
 
 export async function fetchLatestInvoices() {
   noStore();
@@ -52,32 +301,69 @@ export async function fetchLatestInvoices() {
 export async function fetchCardData() {
   noStore();
   try {
-    // You can probably combine these into a single SQL query
-    // However, we are intentionally splitting them to demonstrate
-    // how to initialize multiple queries in parallel with JS.
-    const invoiceCountPromise = sql`SELECT COUNT(*) FROM invoices`;
-    const customerCountPromise = sql`SELECT COUNT(*) FROM customers`;
-    const invoiceStatusPromise = sql`SELECT
-         SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END) AS "paid",
-         SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END) AS "pending"
-         FROM invoices`;
+    const revenuePromise = sql`
+        SELECT SUM(gross_amount) AS total_revenue
+        FROM orders
+        WHERE DATE_TRUNC('year', date) = '2023-01-01';
+    `;
+    const profitPromise = sql`
+      SELECT
+        SUM(o.net_amount - COALESCE(po.purchase_cost, 0) - COALESCE(lb.total_label_cost, 0) - COALESCE(rf.total_refund_amount, 0)) AS total_profit
+      FROM orders o
+      LEFT JOIN (
+        SELECT
+          order_number,
+          SUM(respective_cost) AS purchase_cost
+        FROM purchase_orders
+        GROUP BY order_number
+      ) po ON o.order_number = po.order_number
+      LEFT JOIN (
+        SELECT
+          lo.order_number,
+          SUM(l.cost) AS total_label_cost
+        FROM label_orders lo
+        INNER JOIN labels l ON lo.tracking_number = l.tracking_number
+        GROUP BY lo.order_number
+      ) lb ON o.order_number = lb.order_number
+      LEFT JOIN (
+        SELECT
+          ro.order_number,
+          SUM(r.net_amount) AS total_refund_amount
+        FROM refund_orders ro
+        INNER JOIN refunds r ON ro.refund_id = r.id
+        GROUP BY ro.order_number
+      ) rf ON o.order_number = rf.order_number
+      WHERE EXTRACT(YEAR FROM o.date) = 2023
+      GROUP BY DATE_TRUNC('year', o.date);
+    `;
+    const salesPromise = sql`
+      SELECT
+      COUNT(order_number) AS total_sales
+      FROM orders;
+    `;
+    const expensesPromise = sql`
+      SELECT
+        SUM(cost) AS total_expenses
+      FROM consumables;
+    `;
 
     const data = await Promise.all([
-      invoiceCountPromise,
-      customerCountPromise,
-      invoiceStatusPromise,
+      revenuePromise,
+      profitPromise,
+      salesPromise,
+      expensesPromise
     ]);
 
-    const numberOfInvoices = Number(data[0].rows[0].count ?? '0');
-    const numberOfCustomers = Number(data[1].rows[0].count ?? '0');
-    const totalPaidInvoices = formatCurrency(data[2].rows[0].paid ?? '0');
-    const totalPendingInvoices = formatCurrency(data[2].rows[0].pending ?? '0');
+    const revenue = formatCurrency(data[0].rows[0].total_revenue);
+    const profit = formatCurrency(data[1].rows[0].total_profit);
+    const sales = Number(data[2].rows[0].total_sales);
+    const expenses = formatCurrency(data[3].rows[0].total_expenses);
 
     return {
-      numberOfCustomers,
-      numberOfInvoices,
-      totalPaidInvoices,
-      totalPendingInvoices,
+      revenue,
+      profit,
+      sales,
+      expenses,
     };
   } catch (error) {
     console.error('Database Error:', error);
@@ -168,6 +454,65 @@ export async function fetchFilteredOrders(query: string, currentPage: number) {
   }
 }
 
+export async function fetchFilteredSubscriptions(query: string, currentPage: number) {
+  noStore(); // Assuming this function is defined elsewhere to prevent caching
+  const offset = (currentPage - 1) * ITEMS_PER_EXPENSE_PAGE;
+
+  try {
+    const subscriptions = await sql`
+      SELECT
+        id,
+        service,
+        frequency,
+        begin_date,
+        cost,
+        archived_cost
+      FROM subscriptions
+      WHERE
+        id::text ILIKE ${`%${query}%`} OR
+        service ILIKE ${`%${query}%`} OR
+        frequency ILIKE ${`%${query}%`} OR
+        begin_date::text ILIKE ${`%${query}%`} OR
+        cost::text ILIKE ${`%${query}%`} OR
+        archived_cost::text ILIKE ${`%${query}%`}
+      ORDER BY begin_date DESC
+      LIMIT ${ITEMS_PER_EXPENSE_PAGE} OFFSET ${offset}
+    `;
+
+    return subscriptions.rows;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch subscriptions.');
+  }
+}
+
+export async function fetchFilteredConsumables(query: string, currentPage: number) {
+  noStore(); // Assuming this function is defined elsewhere to prevent caching
+  const offset = (currentPage - 1) * ITEMS_PER_EXPENSE_PAGE;
+
+  try {
+    const consumables = await sql`
+      SELECT
+        id,
+        item,
+        cost,
+        date
+      FROM consumables
+      WHERE
+        id::text ILIKE ${`%${query}%`} OR
+        item ILIKE ${`%${query}%`} OR
+        cost::text ILIKE ${`%${query}%`} OR
+        date::text ILIKE ${`%${query}%`}
+      ORDER BY date DESC
+      LIMIT ${ITEMS_PER_EXPENSE_PAGE} OFFSET ${offset}
+    `;
+
+    return consumables.rows;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch consumables.');
+  }
+}
 
 
 export async function fetchFilteredPurchases(query: string, currentPage: number) {
@@ -260,6 +605,51 @@ export async function fetchOrdersPages(query: string) {
     throw new Error('Failed to fetch total number of sales pages.');
   }
 }
+
+const ITEMS_PER_EXPENSE_PAGE = 50; // or whatever your page size is
+
+export async function fetchConsumablesPages(query: string) {
+  noStore(); // Assuming this function is defined elsewhere to prevent caching
+  try {
+    const count = await sql`SELECT COUNT(*)
+    FROM consumables
+    WHERE
+      item ILIKE ${`%${query}%`} OR
+      cost::text ILIKE ${`%${query}%`} OR
+      date::text ILIKE ${`%${query}%`} OR
+      id::text ILIKE ${`%${query}%`}
+    `;
+
+    const totalPages = Math.ceil(Number(count.rows[0].count) / ITEMS_PER_EXPENSE_PAGE);
+    return totalPages;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch total number of consumables pages.');
+  }
+}
+
+export async function fetchSubscriptionsPages(query: string) {
+  noStore(); // Assuming this function is defined elsewhere to prevent caching
+  try {
+    const count = await sql`SELECT COUNT(*)
+    FROM subscriptions
+    WHERE
+      service ILIKE ${`%${query}%`} OR
+      frequency ILIKE ${`%${query}%`} OR
+      begin_date::text ILIKE ${`%${query}%`} OR
+      cost::text ILIKE ${`%${query}%`} OR
+      archived_cost::text ILIKE ${`%${query}%`} OR
+      id::text ILIKE ${`%${query}%`}
+    `;
+
+    const totalPages = Math.ceil(Number(count.rows[0].count) / ITEMS_PER_EXPENSE_PAGE);
+    return totalPages;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch total number of subscriptions pages.');
+  }
+}
+
 
 export async function fetchPurchasesPages(query: string) {
   noStore(); // Assuming this function is defined elsewhere to prevent caching
